@@ -1,38 +1,54 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
-import { Haptics } from 'expo'; // Assuming expo is available
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 
 export default function AddHabitScreen({ navigation }) {
   const [habitName, setHabitName] = useState('');
   const [consistency, setConsistency] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
-    // Validation
+  const handleSave = async () => {
     if (!habitName.trim()) {
       Alert.alert('Error', 'Habit name is required');
       return;
     }
     const consistencyNum = parseInt(consistency, 10);
     if (isNaN(consistencyNum) || consistencyNum < 0 || consistencyNum > 100) {
-      Alert.alert('Error', 'Please enter a consistency percentage between 0 and 100');
+      Alert.alert('Error', 'Consistency must be a number between 0 and 100');
       return;
     }
 
     setIsSaving(true);
-    // Simulate async save (replace with actual Supabase call in real app, replace with Supabase call
-    setTimeout(() => {
-      // Phase 3: save this to Supabase instead of just logging it
-      console.log('New habit:', { name: habitName.trim(), consistency: consistencyNum });
-      // Haptic feedback success
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+    try {
+      const stored = await AsyncStorage.getItem('@habits');
+      const habits = stored ? JSON.parse(stored) : [];
+
+      const newHabit = {
+        id: Date.now().toString(),
+        name: habitName.trim(),
+        consistency: consistencyNum,
+      };
+      habits.push(newHabit);
+      await AsyncStorage.setItem('@habits', JSON.stringify(habits));
+
       Alert.alert('Success', 'Habit saved!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => navigation.goBack() },
       ]);
+
+      // Haptic feedback
+      if (Platform.OS !== 'web' && Haptics) {
+        try {
+          await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e) {
+          console.warn('Haptic feedback failed:', e);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to save habit', e);
+    } finally {
       setIsSaving(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -51,9 +67,9 @@ export default function AddHabitScreen({ navigation }) {
       <TextInput
         style={styles.input}
         keyboardType="numeric"
-        placeholder="0-100"
         value={consistency}
         onChangeText={setConsistency}
+        placeholder="0-100"
         placeholderTextColor="#888"
       />
 

@@ -1,20 +1,39 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { calculateCheckInXP } from '../lib/leveling';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function CheckInScreen({ route, navigation }) {
   const { habit } = route.params;
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [totalXP, setTotalXP] = useState(0);
 
+  // Load current total XP on mount
+  useEffect(() => {
+    loadTotalXP();
+  }, []);
+
+  // Timer interval for tracking check-in duration
   useEffect(() => {
     let interval = null;
     if (isRunning) {
       interval = setInterval(() => {
-        setSeconds((s) => s + 1);
+        setSeconds(s => s + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [isRunning]);
+
+  const loadTotalXP = async () => {
+    try {
+      const value = await AsyncStorage.getItem('@totalXP');
+      const currentXP = value ? parseInt(value, 10) : 0;
+      setTotalXP(currentXP);
+    } catch (e) {
+      console.warn('Failed to load XP', e);
+    }
+  };
 
   const formatTime = (totalSeconds) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -22,10 +41,26 @@ export default function CheckInScreen({ route, navigation }) {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const handleFinish = () => {
-    // Phase 3: save this session length to Supabase, update consistency score
-    console.log(`Finished ${habit.name} after ${seconds} seconds`);
-    navigation.goBack();
+  const handleFinish = async () => {
+    const xpEarned = calculateCheckInXP(seconds);
+    const newTotal = totalXP + xpEarned;
+
+    try {
+      // Save new XP to AsyncStorage
+      await AsyncStorage.setItem('@totalXP', newTotal.toString());
+      setTotalXP(newTotal);
+
+      console.log(`Finished ${habit.name} after ${seconds} seconds — earned ${xpEarned} XP`);
+
+      Alert.alert('Quest Complete!', `+${xpEarned} XP earned`, [
+        { text: 'Nice', onPress: () => navigation.goBack() }
+      ]);
+
+      setIsRunning(false);
+      setSeconds(0);
+    } catch (e) {
+      console.error('Failed to save XP', e);
+    }
   };
 
   return (

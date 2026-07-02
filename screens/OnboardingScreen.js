@@ -1,14 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
-import { Haptics } from 'expo';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 // Import icons (assuming you have them) or use font icons
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function OnboardingScreen({ navigation }) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [animations] = useState(new Animated.Value(0));
-
   const features = [
     {
       title: 'Track Your Habits',
@@ -27,37 +23,8 @@ export default function OnboardingScreen({ navigation }) {
     },
   ];
 
-  // Calculate animation for step progress
-  const interpolateStep = animations.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%']
-  })
-  animations.interpolate({
-    inputRange: [0, 3], // 3 steps
-    outputRange: [0, 1],
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp'
-  })
-
-  const handleStepChange = (step) => {
-    setCurrentStep(step);
-    animations.setValue(step);
-  };
-
   const handleGetStarted = () => {
-    // Animation to full screen
-    Animated.timing(animations, {
-      toValue: 3,
-      duration: 500,
-      useNativeDriver: true,
-      timingFunction: Easing.linear
-    }).start(() => {
-      navigation.replace('Home');
-      // Have user react to completion
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    });
+    navigation.replace('Home');
   };
 
   return (
@@ -68,18 +35,15 @@ export default function OnboardingScreen({ navigation }) {
 
         <View style={styles.featureList}>
           {features.map((feature, index) => (
-            <Animated.View
+            <View
               key={index}
-              style={[
-                styles.featureCard,
-                { opacity: interpolateStep(index + 1) } // Fade in effect
-              ]}>
+              style={styles.featureCard}>
               <Text style={styles.featureIcon}>{feature.icon}</Text>
               <View style={styles.featureTextContainer}>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
                 <Text style={styles.featureDescription}>{feature.description}</Text>
               </View>
-            </Animated.View>
+            </View>
           ))}
         </View>
       </View>
@@ -88,7 +52,6 @@ export default function OnboardingScreen({ navigation }) {
         <TouchableOpacity
           style={styles.getStartedButton}
           onPress={handleGetStarted}
-          disabled={currentStep < 2} // Block until last step
         >
           <Text style={styles.buttonText}>Get Started</Text>
         </TouchableOpacity>
