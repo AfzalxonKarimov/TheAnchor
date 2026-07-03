@@ -1,7 +1,5 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-
-// Import icons (assuming you have them) or use font icons
 import { FontAwesome } from '@expo/vector-icons';
 
 export default function OnboardingScreen({ navigation }) {
@@ -24,7 +22,7 @@ export default function OnboardingScreen({ navigation }) {
   ];
 
   const handleGetStarted = () => {
-    navigation.replace('Home');
+    navigation.replace('Login');
   };
 
   return (
