@@ -9,15 +9,16 @@
     "types": [
       "react",
       "react-native"
-    ]
+    ],
+    "jsx": "react-native"
   },
   "include": [
     "**/*.ts",
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "app.config.js"
   ],
-  "compiliantFlags": {},
   "extends": "expo/tsconfig.base"
 }
