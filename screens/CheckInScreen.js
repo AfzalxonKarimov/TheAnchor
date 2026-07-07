@@ -1,18 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { calculateCheckInXP } from '../lib/leveling';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../src/supabase/client';
+import { calculateCheckInXP } from '../lib/leveling.js';
 
 export default function CheckInScreen({ route, navigation }) {
   const { habit } = route.params;
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [totalXP, setTotalXP] = useState(0);
-
-  // Load current total XP on mount
-  useEffect(() => {
-    loadTotalXP();
-  }, []);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Timer interval for tracking check-in duration
   useEffect(() => {
@@ -25,16 +20,6 @@ export default function CheckInScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  const loadTotalXP = async () => {
-    try {
-      const value = await AsyncStorage.getItem('@totalXP');
-      const currentXP = value ? parseInt(value, 10) : 0;
-      setTotalXP(currentXP);
-    } catch (e) {
-      console.warn('Failed to load XP', e);
-    }
-  };
-
   const formatTime = (totalSeconds) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
@@ -42,30 +27,69 @@ export default function CheckInScreen({ route, navigation }) {
   };
 
   const handleFinish = async () => {
-    const xpEarned = calculateCheckInXP(seconds);
-    const newTotal = totalXP + xpEarned;
+    if (seconds === 0) {
+      Alert.alert('Error', 'Session must be at least 1 second');
+      return;
+    }
 
+    setIsSaving(true);
     try {
-      // Save new XP to AsyncStorage
-      await AsyncStorage.setItem('@totalXP', newTotal.toString());
-      setTotalXP(newTotal);
+      const xpEarned = calculateCheckInXP(seconds);
 
-      console.log(`Finished ${habit.name} after ${seconds} seconds — earned ${xpEarned} XP`);
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
-      Alert.alert('Quest Complete!', `+${xpEarned} XP earned`, [
+      // Save session to Supabase
+      const { error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          anchor_id: habit.id,
+          user_id: user.id,
+          duration_seconds: seconds,
+          xp: xpEarned,
+        });
+
+      if (sessionError) throw sessionError;
+
+      // Update user's XP in profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_xp')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        const newTotalXP = profile.total_xp + xpEarned;
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ total_xp: newTotalXP })
+          .eq('id', user.id);
+
+        if (profileError) console.warn('Could not update XP:', profileError);
+      }
+
+      console.log(`Finished ${habit.title} after ${seconds} seconds — earned ${xpEarned} XP`);
+
+      Alert.alert('Session Complete!', `+${xpEarned} XP earned`, [
         { text: 'Nice', onPress: () => navigation.goBack() }
       ]);
 
       setIsRunning(false);
       setSeconds(0);
     } catch (e) {
-      console.error('Failed to save XP', e);
+      console.error('Failed to save session', e);
+      Alert.alert('Error', 'Failed to save session. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.habitName}>{habit.name}</Text>
+      <Text style={styles.habitName}>{habit.title || habit.name}</Text>
       <Text style={styles.timer}>{formatTime(seconds)}</Text>
 
       <TouchableOpacity
@@ -75,8 +99,14 @@ export default function CheckInScreen({ route, navigation }) {
         <Text style={styles.buttonText}>{isRunning ? 'Pause' : 'Start'}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.finishButton} onPress={handleFinish}>
-        <Text style={styles.finishButtonText}>Finish Check-In</Text>
+      <TouchableOpacity
+        style={[styles.finishButton, (seconds === 0 || isSaving) && styles.finishButtonDisabled]}
+        onPress={seconds > 0 && !isSaving ? handleFinish : undefined}
+        activeOpacity={seconds > 0 && !isSaving ? 0.7 : 1}
+      >
+        <Text style={styles.finishButtonText}>
+          {isSaving ? 'Saving...' : 'Finish Session'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -100,6 +130,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#007AFF',
+  },
+  finishButtonDisabled: {
+    opacity: 0.5,
   },
   finishButtonText: { color: '#007AFF', fontWeight: 'bold', fontSize: 16 },
 });

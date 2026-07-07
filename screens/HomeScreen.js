@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontAwesome } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../src/supabase/client';
 
 import {
   getLevelFromXP,
@@ -13,36 +13,58 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const [habits, setHabits] = useState([]);
   const [xp, setXp] = useState(0);
+  const [momentum, setMomentum] = useState(50);
   const [celebrate, setCelebrate] = useState(false);
   const [scaleAnim] = useState(new Animated.Value(1));
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load XP from AsyncStorage
-  const loadXP = useCallback(async () => {
+  // Load profile data from Supabase
+  const loadProfile = useCallback(async () => {
     try {
-      const storedXP = await AsyncStorage.getItem('@xp');
-      if (storedXP) {
-        setXp(parseInt(storedXP, 10));
-      } else {
-        setXp(0);
+      const { data: { user } } = await supabase.auth.getUser();
+      // In development, allow use without auth (for testing)
+      // In production, redirect to onboarding if no user
+      if (!user && !__DEV__) {
+        navigation.replace('Onboarding');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('total_xp, momentum')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.warn('Failed to load profile:', error);
+      }
+
+      if (data) {
+        setXp(data.total_xp || 0);
+        setMomentum(data.momentum || 50);
       }
     } catch (e) {
-      console.warn('Failed to load XP from AsyncStorage', e);
-      setXp(0);
+      console.warn('Failed to load profile', e);
     }
-  }, []);
+  }, [navigation]);
 
-  // Load habits from AsyncStorage on mount
+  // Load anchors from Supabase
   const loadHabits = useCallback(async () => {
     try {
-      const stored = await AsyncStorage.getItem('@habits');
-      if (stored) {
-        setHabits(JSON.parse(stored));
-      } else {
+      const { data, error } = await supabase
+        .from('anchors')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Failed to load anchors:', error);
         setHabits([]);
+        return;
       }
+
+      setHabits(data || []);
     } catch (e) {
-      console.warn('Failed to load habits from AsyncStorage', e);
+      console.warn('Failed to load anchors from Supabase', e);
       setHabits([]);
     }
   }, []);
@@ -50,11 +72,16 @@ export default function HomeScreen() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([loadXP(), loadHabits()]);
+      // Skip profile loading in dev mode (no auth required)
+      if (__DEV__) {
+        setXp(100);
+        setMomentum(50);
+      }
+      await loadHabits();
       setIsLoading(false);
     };
     loadData();
-  }, [loadXP, loadHabits]);
+  }, [loadProfile, loadHabits]);
 
   // Leveling calculations
   const level = getLevelFromXP(xp);
@@ -86,12 +113,17 @@ export default function HomeScreen() {
     }
   }, [celebrate, scaleAnim]);
 
-  // Auto-navigate to AddHabit if no habits exist
+  // Auto-navigate to Journey if no habits exist
   useEffect(() => {
     if (!isLoading && habits.length === 0) {
-      navigation.navigate('AddHabit');
+      navigation.navigate('journey');
     }
   }, [habits, navigation, isLoading]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigation.replace('Onboarding');
+  };
 
   if (isLoading) {
     return (
@@ -105,33 +137,41 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {/* Header Stats */}
       <View style={styles.header}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Today's Anchors</Text>
-          <Text style={styles.statValue}>{habits.length}</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>TheAnchor</Text>
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Momentum</Text>
-          <Text style={styles.statValue}>3 days</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>XP</Text>
-          <Text style={styles.statValue}>{xp}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Level</Text>
-          <Text style={styles.statValue}>{level}</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>Rank</Text>
-          <Text style={styles.statValue}>{rank}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Today's Anchors</Text>
+            <Text style={styles.statValue}>{habits.length}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Momentum</Text>
+            <Text style={styles.statValue}>{momentum} pts</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>XP</Text>
+            <Text style={styles.statValue}>{xp}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Level</Text>
+            <Text style={styles.statValue}>{level}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Rank</Text>
+            <Text style={styles.statValue}>{rank}</Text>
+          </View>
         </View>
       </View>
 
-      <Text style={styles.title}>Your Habits</Text>
+      <Text style={styles.sectionTitle}>Your Anchors</Text>
 
       {habits.length > 0 ? (
         <>
-          <Text style={styles.subtitle}>You have {habits.length} habit{habits.length !== 1 ? 's' : ''} tracked</Text>
+          <Text style={styles.subtitle}>You have {habits.length} anchor{habits.length !== 1 ? 's' : ''} tracked</Text>
 
           <FlatList
             data={habits}
@@ -142,8 +182,10 @@ export default function HomeScreen() {
                 onPress={() => navigation.navigate('CheckIn', { habit: item })}
               >
                 <View style={styles.habitInfo}>
-                  <Text style={styles.habitName}>{item.name}</Text>
-                  <Text style={styles.habitDescription}>{item.description}</Text>
+                  <Text style={styles.habitName}>{item.title}</Text>
+                  <Text style={styles.habitDescription}>
+                    Target: {item.target_days || 7} days • Min: {item.minimum_duration || 15} min
+                  </Text>
                 </View>
                 <View style={styles.habitStats}>
                   <Text style={styles.habitScore}>{item.consistency || 0}%</Text>
@@ -159,7 +201,7 @@ export default function HomeScreen() {
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>Has Anchors? -- No &gt; Create First Anchor</Text>
+          <Text style={styles.emptyText}>Create your first Anchor to begin tracking</Text>
         </View>
       )}
 
@@ -177,12 +219,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 20,
   },
-  statItem: {
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  title: { fontSize: 24, fontWeight: 'bold' },
+  logoutText: { color: '#007AFF', fontSize: 14 },
+  statsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  statItem: {
+    minWidth: '48%',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    marginBottom: 8,
   },
   statLabel: {
     fontSize: 12,
@@ -194,7 +247,7 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
 
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, marginTop: 10 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, marginTop: 10 },
   subtitle: { fontSize: 16, color: '#555', textAlign: 'center', marginBottom: 20 },
 
   emptyState: {
@@ -228,18 +281,4 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   addButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-
-  // Progress bar styles
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 4,
-  },
 });
