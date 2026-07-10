@@ -13,6 +13,9 @@ import { spacing, typography, colors, baseStyles } from '../src/constants/theme'
 import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
 import { supabase } from '../src/supabase/client';
 
+// Feature flag for subscription feature (easy to re-enable later)
+const SHOW_SUBSCRIPTION = false;
+
 /**
  * Profile Screen - User settings and account management.
  *
@@ -21,6 +24,7 @@ import { supabase } from '../src/supabase/client';
  * - Avatar placeholder with rank badge
  * - Grouped settings for clarity
  * - Dark mode aware styling
+ * - Logout as destructive action at bottom
  */
 export default function ProfileScreen() {
   const [userEmail, setUserEmail] = useState('user@example.com');
@@ -79,13 +83,15 @@ export default function ProfileScreen() {
             value={darkMode}
             onValueChange={setDarkMode}
           />
-          <SettingsItem icon="credit-card" label="Subscription" />
+          {SHOW_SUBSCRIPTION && (
+            <SettingsItem icon="credit-card" label="Subscription" />
+          )}
           <SettingsItem icon="question-circle" label="Help & Support" />
         </View>
 
-        {/* Logout */}
+        {/* Logout - Destructive action at bottom */}
         <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}
+          style={styles.logoutRow}
           onPress={handleLogout}
         >
           <Text style={styles.logoutText}>Log Out</Text>
@@ -189,15 +195,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.neutral[700],
   },
-  logoutButton: {
-    padding: spacing.lg,
-    borderRadius: 16,
-    alignItems: 'center',
+  logoutRow: {
+    paddingVertical: spacing.lg,
     marginTop: 'auto',
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '600',
     color: colors.error,
+    fontWeight: '500',
   },
 });

@@ -7,11 +7,13 @@ import {
   Animated,
   Easing,
   useColorScheme,
+  Alert,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, animation, baseStyles } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
+import { supabase } from '../src/supabase/client';
 
 interface SessionScreenProps {
   route: {
@@ -28,57 +30,97 @@ interface SessionScreenProps {
  * Design decisions:
  * - Full-screen immersive timer
  * - Large, clear time display
- * - Minimal controls (Start/Pause/Stop)
- * - Progress ring visualization
+ * - Start/Pause/Finish controls
  * - Haptic feedback on session events
+ * - Saves session to Supabase on finish
  */
 export default function SessionScreen({ route, navigation }: SessionScreenProps) {
+  const { anchorId } = route.params;
   const [anchor, setAnchor] = useState<Anchor | null>(null);
-  const [duration, setDuration] = useState(15 * 60); // Default to 15 minutes
-  const [remaining, setRemaining] = useState(duration);
+  const [seconds, setSeconds] = useState(0); // Elapsed time
   const [isActive, setIsActive] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   // Animation for pulse effect when timer is active
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
+  // Load anchor data on mount
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.05,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [pulseAnim]);
+    const loadAnchor = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('anchors')
+          .select('*')
+          .eq('id', anchorId)
+          .single();
+
+        if (!error && data) {
+          setAnchor({
+            id: data.id,
+            title: data.title,
+            icon: data.icon,
+            color: data.color,
+            targetDays: data.target_days,
+            minimumDuration: data.minimum_duration,
+            consistency: data.consistency,
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to load anchor:', e);
+        // In dev mode, use placeholder
+        if (__DEV__) {
+          setAnchor({
+            id: anchorId,
+            title: 'Session',
+            icon: 'clock',
+            color: '#007AFF',
+            targetDays: 7,
+            minimumDuration: 15,
+            consistency: 50,
+          });
+        }
+      }
+    };
+    loadAnchor();
+  }, [anchorId]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isActive && remaining > 0) {
+    if (isActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [isActive, pulseAnim]);
+
+  // Timer interval
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (isActive) {
       interval = setInterval(() => {
-        setRemaining((prev) => prev - 1);
+        setSeconds(s => s + 1);
       }, 1000);
-    } else if (remaining === 0 && isActive) {
-      setIsActive(false);
-      setIsCompleted(true);
     }
     return () => clearInterval(interval);
-  }, [isActive, remaining]);
+  }, [isActive]);
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -90,13 +132,48 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
     setIsActive(false);
   };
 
-  const handleStop = () => {
-    setIsActive(false);
-    setRemaining(duration);
-    navigation.goBack();
-  };
+  const handleFinish = async () => {
+    if (seconds === 0) {
+      Alert.alert('Error', 'Session must be at least 1 second');
+      return;
+    }
 
-  const progress = (duration - remaining) / duration;
+    setIsSaving(true);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Not authenticated');
+        setIsSaving(false);
+        return;
+      }
+
+      // Save session to Supabase - do NOT calculate XP as requested
+      const { error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          anchor_id: anchorId,
+          user_id: user.id,
+          duration_seconds: seconds,
+        });
+
+      if (sessionError) {
+        console.error('Failed to save session:', sessionError);
+        Alert.alert('Error', 'Failed to save session. Please try again.');
+      } else {
+        // Success - navigate back to Home
+        Alert.alert('Session Complete!', `You checked in for ${formatTime(seconds)}`, [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+        setSeconds(0);
+      }
+    } catch (e) {
+      console.error('Session save error:', e);
+      Alert.alert('Error', 'Failed to save session. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.dark.background : colors.light.background }]}>
@@ -111,20 +188,9 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
 
         {/* Timer Display */}
         <Animated.View style={[styles.timerContainer, { transform: [{ scale: pulseAnim }] }]}>
-          <View style={[styles.progressRing, { borderColor: `${colors.primary}20` }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: `${colors.primary}10`,
-                  height: `${(1 - progress) * 100}%`,
-                },
-              ]}
-            />
-            <Text style={[styles.timerText, { color: isDark ? colors.dark.text : colors.light.text }]}>
-              {formatTime(remaining)}
-            </Text>
-          </View>
+          <Text style={[styles.timerText, { color: isDark ? colors.dark.text : colors.light.text }]}>
+            {formatTime(seconds)}
+          </Text>
         </Animated.View>
 
         {/* Controls */}
@@ -139,8 +205,14 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
               <TouchableOpacity style={styles.controlButton} onPress={handlePause}>
                 <FontAwesome5 name="pause" size={18} color={colors.primary} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.stopButton} onPress={handleStop}>
-                <FontAwesome5 name="stop" size={18} color="#FFFFFF" />
+              <TouchableOpacity
+                style={[styles.finishButton, isSaving && styles.finishButtonDisabled]}
+                onPress={handleFinish}
+                disabled={isSaving}
+              >
+                <Text style={styles.finishButtonText}>
+                  {isSaving ? 'Saving...' : 'Finish Session'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -176,23 +248,9 @@ const styles = StyleSheet.create({
     ...baseStyles.flexCenter,
     flex: 1,
   },
-  progressRing: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 8,
-    ...baseStyles.flexCenter,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
   timerText: {
     ...typography.title,
-    fontSize: 48,
+    fontSize: 64,
     fontWeight: '300',
   },
   controls: {
@@ -224,11 +282,18 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}20`,
     ...baseStyles.flexCenter,
   },
-  stopButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.error,
-    ...baseStyles.flexCenter,
+  finishButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 24,
+    backgroundColor: colors.success,
+  },
+  finishButtonDisabled: {
+    opacity: 0.5,
+  },
+  finishButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

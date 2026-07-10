@@ -3,6 +3,7 @@ import { supabase } from './client';
 // Fetch today's sessions for the current user
 export const getTodaySessions = async () => {
   const { data: { user } } = await supabase.auth.getUser();
+  console.log('getTodaySessions - user:', user?.id || 'no user');
   if (!user) return [];
 
   const today = new Date();
@@ -23,6 +24,7 @@ export const getTodaySessions = async () => {
     throw error;
   }
 
+  console.log('getTodaySessions - found sessions:', data?.length || 0);
   return data || [];
 };
 

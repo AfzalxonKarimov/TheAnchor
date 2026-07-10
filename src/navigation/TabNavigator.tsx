@@ -8,6 +8,7 @@ import { TabBarIcon } from '../components/navigation/TabBarIcon';
 import { colors, spacing, typography, baseStyles } from '../constants/theme';
 import { Anchor } from './types';
 import { supabase } from '../supabase/client';
+import { getTodaySessions } from '../supabase/sessions';
 import * as Haptics from 'expo-haptics';
 
 // Screens
@@ -63,39 +64,81 @@ function CustomTabBar({
 
   // Modal state for anchor selection
   const [anchors, setAnchors] = useState<Anchor[]>([]);
+  const [todaySessions, setTodaySessions] = useState<any[]>([]);
   const [isModalVisible, setModalVisible] = useState(false);
 
   const loadAnchors = useCallback(async () => {
-    const { data, error } = await supabase.from('anchors').select('*');
-    if (!error && data) {
-      setAnchors(
-        data.map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          icon: a.icon,
-          color: a.color,
-          targetDays: a.target_days,
-          minimumDuration: a.minimum_duration,
-          consistency: a.consistency,
-        }))
-      );
-    } else if (error && __DEV__) {
-      // Dev mode fallback
-      setAnchors([
-        { id: '1', title: 'Meditate', icon: 'leaf', color: '#34C759', targetDays: 7, minimumDuration: 15, consistency: 85 },
-        { id: '2', title: 'Read', icon: 'book', color: '#007AFF', targetDays: 5, minimumDuration: 20, consistency: 72 },
-        { id: '3', title: 'Workout', icon: 'futbol', color: '#FF3B30', targetDays: 5, minimumDuration: 30, consistency: 90 },
-      ]);
+    console.log('Loading anchors...');
+    try {
+      const { data, error } = await supabase.from('anchors').select('*');
+      console.log('Anchors query result:', { dataLength: data?.length, error });
+      if (!error && data && data.length > 0) {
+        setAnchors(
+          data.map((a: any) => ({
+            id: a.id,
+            title: a.title,
+            icon: a.icon,
+            color: a.color,
+            targetDays: a.target_days,
+            minimumDuration: a.minimum_duration,
+            consistency: a.consistency,
+          }))
+        );
+      } else if (__DEV__) {
+        // Dev mode fallback - always use fallback in dev mode
+        console.log('Using dev mode fallback anchors');
+        setAnchors([
+          { id: '1', title: 'Meditate', icon: 'leaf', color: '#34C759', targetDays: 7, minimumDuration: 15, consistency: 85 },
+          { id: '2', title: 'Read', icon: 'book', color: '#007AFF', targetDays: 5, minimumDuration: 20, consistency: 72 },
+          { id: '3', title: 'Workout', icon: 'futbol', color: '#FF3B30', targetDays: 5, minimumDuration: 30, consistency: 90 },
+        ]);
+      }
+    } catch (e) {
+      console.warn('Error loading anchors:', e);
+      if (__DEV__) {
+        setAnchors([
+          { id: '1', title: 'Meditate', icon: 'leaf', color: '#34C759', targetDays: 7, minimumDuration: 15, consistency: 85 },
+          { id: '2', title: 'Read', icon: 'book', color: '#007AFF', targetDays: 5, minimumDuration: 20, consistency: 72 },
+          { id: '3', title: 'Workout', icon: 'futbol', color: '#FF3B30', targetDays: 5, minimumDuration: 30, consistency: 90 },
+        ]);
+      }
     }
   }, []);
 
+  const loadTodaySessions = useCallback(async () => {
+    try {
+      const sessions = await getTodaySessions();
+      console.log('Today sessions loaded:', sessions?.length || 0);
+      setTodaySessions(sessions || []);
+    } catch (e) {
+      console.warn('Error loading today sessions:', e);
+      setTodaySessions([]);
+    }
+  }, []);
+
+  // In dev mode, use placeholder sessions if no user (for testing)
+  useEffect(() => {
+    if (__DEV__ && todaySessions.length === 0 && anchors.length > 0) {
+      // No sessions today in dev mode - this is fine, all anchors are due
+      console.log('Dev mode: No sessions today, all anchors will be due');
+    }
+  }, [todaySessions, anchors]);
+
   useEffect(() => {
     loadAnchors();
-  }, [loadAnchors]);
+    loadTodaySessions();
+  }, [loadAnchors, loadTodaySessions]);
 
   const centerTabIndex = 2; // Center position for floating button
 
+  // Determine which anchors are due today (not yet completed)
+  const anchorsDueToday = anchors.filter(anchor => {
+    return !todaySessions.some(s => s.anchor_id === anchor.id);
+  });
+
   const handleFloatingPress = async () => {
+    console.log('PLAY BUTTON PRESSED - anchors:', anchors.length, 'dueToday:', anchorsDueToday.length);
+
     // Haptic feedback
     if (Platform.OS !== 'web') {
       try {
@@ -104,7 +147,21 @@ function CustomTabBar({
         // Silently fail on unsupported devices
       }
     }
-    setModalVisible(true);
+
+    if (anchorsDueToday.length === 0) {
+      console.log('No anchors due today');
+      return;
+    }
+
+    if (anchorsDueToday.length === 1) {
+      console.log('Auto-starting session for anchor:', anchorsDueToday[0].id);
+      // Auto-start check-in for the single due anchor
+      navigation.navigate('session' as never, { anchorId: anchorsDueToday[0].id } as never);
+    } else {
+      console.log('Showing picker modal for', anchorsDueToday.length, 'anchors');
+      // Show picker modal for multiple due anchors
+      setModalVisible(true);
+    }
   };
 
   const handleSelectAnchor = (anchor: Anchor) => {
@@ -175,7 +232,7 @@ function CustomTabBar({
         onRequestClose={() => setModalVisible(false)}
       >
         <AnchorSelectionModal
-          anchors={anchors}
+          anchors={anchorsDueToday}
           onClose={() => setModalVisible(false)}
           onSelect={handleSelectAnchor}
         />

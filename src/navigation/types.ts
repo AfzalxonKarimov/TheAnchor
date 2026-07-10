@@ -49,4 +49,11 @@ export type RootStackParamList = {
 
   // Modal/bottom sheet screens
   anchorSelection: undefined;
+
+  // Add/Edit habit screen
+  AddHabit: { anchor?: Anchor } | undefined;
+
+  // Deprecated - kept for backward compatibility
+  CheckIn: { habit: any };
+  Onboarding: undefined;
 };
