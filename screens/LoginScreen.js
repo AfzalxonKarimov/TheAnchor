@@ -22,9 +22,9 @@ export default function LoginScreen({ navigation }) {
     setIsLoading(true);
 
     try {
-      // For Expo Go, use the expo:// scheme with your dev server address
-      // Format: exp://<host>:<port>/<path> - allows Expo Go to handle the auth callback
-      const redirectTo = 'exp://localhost:8081/--/login';
+      // Use custom scheme for dev client deep linking
+      // Format: <scheme>://<path> - theanchor://login
+      const redirectTo = 'theanchor://login';
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
@@ -88,7 +88,7 @@ export default function LoginScreen({ navigation }) {
         {emailSent ? (
           <View style={styles.successContainer}>
             <Text style={styles.successText}>✓ Magic link sent!</Text>
-            <Text style={styles.successSubtext}>Check your email. On mobile, tap the link to open in Expo Go. On simulator, open the link in your computer's browser.</Text>
+            <Text style={styles.successSubtext}>Check your email and tap the link to open in the dev client app.</Text>
           </View>
         ) : (
           <View style={styles.inputContainer}>

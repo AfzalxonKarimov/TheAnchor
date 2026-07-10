@@ -34,7 +34,7 @@ module.exports = {
       supabaseUrl: SUPABASE_URL,
       supabaseAnonKey: SUPABASE_ANON_KEY,
       eas: {
-        projectId: 'your-eas-project-id',
+        projectId: 'b33f477a-a053-4f13-bfda-bb22b7db0f39',
       },
     },
   },
