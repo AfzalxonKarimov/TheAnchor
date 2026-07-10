@@ -19,6 +19,7 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.afzalto.theanchor',
     },
     android: {
       adaptiveIcon: {
@@ -26,6 +27,7 @@ module.exports = {
         backgroundColor: '#ffffff',
       },
       edgeToEdgeEnabled: true,
+      package: 'com.afzalto.theanchor',
     },
     web: {
       favicon: './assets/favicon.png',
