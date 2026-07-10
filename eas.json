@@ -4,7 +4,7 @@
       "distribution": "internal",
       "developmentClient": true,
       "android": {
-        "gradleCommand": ":app:assembleDebug"
+        "buildType": "apk"
       },
       "ios": {
         "simulator": false
