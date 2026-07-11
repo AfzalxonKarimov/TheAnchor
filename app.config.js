@@ -12,6 +12,7 @@ module.exports = {
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
     scheme: 'theanchor',
+    plugins: ['expo-font'],
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',

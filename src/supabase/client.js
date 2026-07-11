@@ -13,8 +13,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     // Persist session in local storage
     persistSession: true,
-    // Detect session from URL (for magic link redirects)
-    detectSessionInUrl: true,
+    // Disable auto-detection; we handle it manually via Linking API in SDK 54+
+    detectSessionInUrl: false,
   },
 });
 

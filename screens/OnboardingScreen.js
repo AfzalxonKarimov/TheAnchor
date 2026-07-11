@@ -1,35 +1,70 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { supabase } from '../src/supabase/client';
 
 export default function OnboardingScreen({ navigation }) {
+  const url = Linking.useLinkingURL();
+
+  const handleDeepLink = useCallback(async (url) => {
+    if (url) {
+      console.log('Handling deep link:', url);
+      // Supabase magic link URLs have tokens in the hash fragment
+      // URL format: theanchor://login#access_token=...&refresh_token=...
+      const parsed = Linking.parse(url);
+
+      // Check both fragment (hash) and queryParams for tokens
+      let accessToken = null;
+      let refreshToken = null;
+
+      // Try fragment first (hash)
+      if (parsed.fragment) {
+        const fragmentParams = new URLSearchParams(parsed.fragment);
+        accessToken = fragmentParams.get('access_token');
+        refreshToken = fragmentParams.get('refresh_token');
+      }
+
+      // Fallback to query params if not found in fragment
+      if (!accessToken && parsed.queryParams) {
+        accessToken = parsed.queryParams.access_token;
+        refreshToken = parsed.queryParams.refresh_token;
+      }
+
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (data.session) {
+          console.log('Session established from magic link');
+          // Clear the URL to prevent re-triggering
+          Linking.clearInitialURL?.();
+          navigation.replace('Index'); // Navigate to TabNavigator
+        } else if (error) {
+          console.error('Failed to set session:', error);
+        }
+      }
+    }
+  }, [navigation]);
+
+  // Check if user is already authenticated
   useEffect(() => {
-    // Check if user is already authenticated
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      // In production, redirect if already signed in
-      // In dev, don't auto-redirect
-      if (session && !__DEV__) {
+      if (session) {
         navigation.replace('Index'); // Navigate to TabNavigator
       }
     };
 
     checkAuth();
-
-    // Listen for auth state changes (disabled in dev to prevent skipping)
-    if (!__DEV__) {
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          navigation.replace('Index'); // Navigate to TabNavigator
-        }
-      });
-
-      return () => {
-        authListener?.subscription?.unsubscribe?.();
-      };
-    }
   }, [navigation]);
+
+  // Handle deep links from magic link redirects
+  useEffect(() => {
+    handleDeepLink(url);
+  }, [url, handleDeepLink]);
 
   const features = [
     {
