@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { AuthProvider } from './src/auth/AuthContext';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import TabNavigator from './src/navigation/TabNavigator';
@@ -28,8 +29,9 @@ const linking = {
 
 export default function App() {
   return (
-    <NavigationContainer linking={linking}>
-      <Stack.Navigator initialRouteName="Onboarding">
+    <AuthProvider>
+      <NavigationContainer linking={linking}>
+        <Stack.Navigator initialRouteName="Onboarding">
         <Stack.Screen
           name="Onboarding"
           component={OnboardingScreen}
@@ -58,7 +60,8 @@ export default function App() {
           component={SessionScreen}
           options={{ headerShown: false, presentation: 'modal' }}
         />
-      </Stack.Navigator>
-    </NavigationContainer>
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthProvider>
   );
 }

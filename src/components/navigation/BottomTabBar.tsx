@@ -7,6 +7,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingActionButton } from './FloatingActionButton';
 import { TabBarIcon } from './TabBarIcon';
+import { FontAwesome } from '@expo/vector-icons';
 import { colors, navigationTokens, spacing, baseStyles } from '../../constants/theme';
 
 /**

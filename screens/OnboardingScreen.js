@@ -1,70 +1,23 @@
-import { useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
-import { supabase } from '../src/supabase/client';
+import { useAuth } from '../src/auth/AuthContext';
 
 export default function OnboardingScreen({ navigation }) {
-  const url = Linking.useLinkingURL();
+  const { session, loading } = useAuth();
 
-  const handleDeepLink = useCallback(async (url) => {
-    if (url) {
-      console.log('Handling deep link:', url);
-      // Supabase magic link URLs have tokens in the hash fragment
-      // URL format: theanchor://login#access_token=...&refresh_token=...
-      const parsed = Linking.parse(url);
-
-      // Check both fragment (hash) and queryParams for tokens
-      let accessToken = null;
-      let refreshToken = null;
-
-      // Try fragment first (hash)
-      if (parsed.fragment) {
-        const fragmentParams = new URLSearchParams(parsed.fragment);
-        accessToken = fragmentParams.get('access_token');
-        refreshToken = fragmentParams.get('refresh_token');
-      }
-
-      // Fallback to query params if not found in fragment
-      if (!accessToken && parsed.queryParams) {
-        accessToken = parsed.queryParams.access_token;
-        refreshToken = parsed.queryParams.refresh_token;
-      }
-
-      if (accessToken && refreshToken) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-
-        if (data.session) {
-          console.log('Session established from magic link');
-          // Clear the URL to prevent re-triggering
-          Linking.clearInitialURL?.();
-          navigation.replace('Index'); // Navigate to TabNavigator
-        } else if (error) {
-          console.error('Failed to set session:', error);
-        }
-      }
+  // Auto-redirect already-authenticated users to the app.
+  useEffect(() => {
+    if (!loading && session) {
+      navigation.replace('Index'); // Navigate to TabNavigator
     }
-  }, [navigation]);
-
-  // Check if user is already authenticated
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigation.replace('Index'); // Navigate to TabNavigator
-      }
-    };
-
-    checkAuth();
-  }, [navigation]);
-
-  // Handle deep links from magic link redirects
-  useEffect(() => {
-    handleDeepLink(url);
-  }, [url, handleDeepLink]);
+  }, [loading, session, navigation]);
 
   const features = [
     {
@@ -87,6 +40,16 @@ export default function OnboardingScreen({ navigation }) {
   const handleGetStarted = () => {
     navigation.replace('Login');
   };
+
+  // While the initial session check resolves, show a spinner to avoid a flash
+  // of the onboarding UI for already-signed-in users.
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -121,6 +84,7 @@ export default function OnboardingScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
+  loadingContainer: { alignItems: 'center', justifyContent: 'center' },
   contentContainer: { flex: 1, padding: 30, paddingTop: 100 },
   title: { fontSize: 34, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
   tagline: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },

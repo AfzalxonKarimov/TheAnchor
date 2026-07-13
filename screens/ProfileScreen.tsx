@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
 import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
-import { supabase } from '../src/supabase/client';
+import { useAuth } from '../src/auth/AuthContext';
 
 // Feature flag for subscription feature (easy to re-enable later)
 const SHOW_SUBSCRIPTION = false;
@@ -27,7 +27,7 @@ const SHOW_SUBSCRIPTION = false;
  * - Logout as destructive action at bottom
  */
 export default function ProfileScreen() {
-  const [userEmail, setUserEmail] = useState('user@example.com');
+  const { user, signOut } = useAuth();
   const [xp, setXp] = useState(150);
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -36,17 +36,10 @@ export default function ProfileScreen() {
 
   const level = getLevelFromXP(xp);
   const rank = getRankFromLevel(level);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) {
-        setUserEmail(data.user.email || 'user@example.com');
-      }
-    });
-  }, []);
+  const userEmail = user?.email || 'user@example.com';
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
   };
 
   return (
