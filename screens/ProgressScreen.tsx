@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  useColorScheme,
 } from 'react-native';
+import { useTheme } from '../src/theme/ThemeProvider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
-import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
+import { getLevelFromXP, getRankFromLevel, getLevelProgress, getXPForNextLevel } from '../lib/leveling';
+import { supabase } from '../src/supabase/client';
+import { getStreak } from '../src/supabase/streaks';
+import { getWeeklySessionCounts } from '../src/supabase/sessions';
 
 /**
  * Progress Screen - Analytics dashboard.
@@ -21,15 +25,83 @@ import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
  * - Smooth scroll for all content
  */
 export default function ProgressScreen() {
-  const [xp, setXp] = useState(150);
-  const [momentum, setMomentum] = useState(62);
+  const [xp, setXp] = useState(0);
+  const [momentum, setMomentum] = useState(50);
   const [weeklyStats, setWeeklyStats] = useState({
-    sessions: 12,
-    anchorsActive: 3,
-    streak: 5,
+    sessions: 0,
+    anchorsActive: 0,
+    streak: 0,
   });
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const [weeklyActivity, setWeeklyActivity] = useState<number[]>([]);
+  const { isDark } = useTheme();
+
+  const loadProgressData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // Dev (e.g. Skip Login) has no authenticated user, so there's no real
+        // data to chart. Seed a demo dashboard so the UI is visible while testing
+        // — mirrors the __DEV__ forcing already done on HomeScreen.
+        if (__DEV__) {
+          setXp(100);
+          setMomentum(50);
+          setWeeklyActivity([2, 4, 3, 5, 7, 6, 8, 5]);
+          setWeeklyStats({ sessions: 24, anchorsActive: 3, streak: 5 });
+        }
+        return;
+      }
+
+      // Load profile data (XP, momentum)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_xp, momentum')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setXp(profile.total_xp || 0);
+        setMomentum(profile.momentum || 50);
+      }
+
+      // Load this week's session count
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+
+      const { count: sessionCount } = await supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', weekAgo.toISOString());
+
+      // Load anchor count
+      const { count: anchorCount } = await supabase
+        .from('anchors')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // Load streak
+      const streak = await getStreak();
+
+      // Load weekly activity for the momentum chart
+      const activity = await getWeeklySessionCounts(8);
+      setWeeklyActivity(activity);
+
+      setWeeklyStats({
+        sessions: sessionCount || 0,
+        anchorsActive: anchorCount || 0,
+        streak,
+      });
+    } catch (e) {
+      console.warn('Failed to load progress data:', e);
+    }
+  }, []);
+
+  // Load data on focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProgressData();
+    }, [loadProgressData])
+  );
 
   const level = getLevelFromXP(xp);
   const rank = getRankFromLevel(level);
@@ -67,12 +139,12 @@ export default function ProgressScreen() {
                 styles.progressFill,
                 {
                   backgroundColor: colors.primary,
-                  width: `${(xp % 100) * 0.8}%`, // Simulated progress
+                  width: `${getLevelProgress(xp) * 100}%`,
                 },
               ]}
             />
           </View>
-          <Text style={styles.progressHint}>Earn 20 XP to reach Level {level + 1}</Text>
+          <Text style={styles.progressHint}>Earn {getXPForNextLevel(xp) - xp} XP to reach Level {level + 1}</Text>
         </View>
 
         {/* Momentum Graph */}
@@ -80,10 +152,10 @@ export default function ProgressScreen() {
           <Text style={[styles.cardTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>
             Momentum
           </Text>
-          <View style={styles.graphPlaceholder}>
-            <FontAwesome5 name="chart-line" size={48} color={colors.neutral[300]} />
-            <Text style={styles.graphLabel}>{momentum} pts</Text>
-          </View>
+          <MomentumBarChart data={weeklyActivity} isDark={isDark} />
+          <Text style={styles.chartCaption}>
+            {momentum} pts · last 8 weeks
+          </Text>
         </View>
 
         {/* Weekly Stats */}
@@ -99,6 +171,46 @@ export default function ProgressScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function MomentumBarChart({ data, isDark }: { data: number[]; isDark: boolean }) {
+  const hasActivity = data.length > 0 && data.some((n) => n > 0);
+
+  if (!hasActivity) {
+    return (
+      <View style={styles.chartEmpty}>
+        <FontAwesome5 name="chart-line" size={36} color={colors.neutral[300]} />
+        <Text style={styles.chartEmptyText}>No activity yet</Text>
+        <Text style={styles.chartEmptySubtext}>
+          Complete check-ins to build your momentum
+        </Text>
+      </View>
+    );
+  }
+
+  const max = Math.max(1, ...data);
+
+  return (
+    <View style={styles.chartRow}>
+      {data.map((count, i) => {
+        const heightPct = Math.max(4, (count / max) * 96);
+        return (
+          <View key={i} style={styles.chartBarWrap}>
+            <View
+              style={[
+                styles.chartBar,
+                {
+                  height: heightPct,
+                  backgroundColor: colors.primary,
+                  opacity: count === 0 ? 0.15 : 1,
+                },
+              ]}
+            />
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -174,15 +286,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: spacing.lg,
   },
-  graphPlaceholder: {
-    ...baseStyles.flexCenter,
-    height: 120,
+  chartRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 110,
+    gap: spacing.sm,
   },
-  graphLabel: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.neutral[600],
+  chartBarWrap: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+  },
+  chartBar: {
+    width: '100%',
+    borderRadius: 6,
+    minHeight: 4,
+  },
+  chartCaption: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.neutral[500],
+    textAlign: 'center',
     marginTop: spacing.md,
+  },
+  chartEmpty: {
+    ...baseStyles.flexCenter,
+    height: 110,
+  },
+  chartEmptyText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.neutral[500],
+    marginTop: spacing.sm,
+  },
+  chartEmptySubtext: {
+    fontSize: 12,
+    color: colors.neutral[400],
+    marginTop: 2,
   },
   statsGrid: {
     flexDirection: 'row',

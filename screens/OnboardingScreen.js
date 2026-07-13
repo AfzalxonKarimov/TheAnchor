@@ -6,7 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../src/auth/AuthContext';
 
 export default function OnboardingScreen({ navigation }) {
@@ -33,7 +33,7 @@ export default function OnboardingScreen({ navigation }) {
     {
       title: 'Track Momentum',
       description: 'See your progress grow with Momentum that never resets to zero',
-      icon: 'line-chart',
+      icon: 'chart-line',
     },
   ];
 
@@ -60,7 +60,9 @@ export default function OnboardingScreen({ navigation }) {
         <View style={styles.featureList}>
           {features.map((feature, index) => (
             <View key={index} style={styles.featureCard}>
-              <FontAwesome name={feature.icon} size={28} color="#007AFF" style={styles.featureIcon} />
+              <View style={styles.featureIconWrap}>
+                <FontAwesome5 name={feature.icon} size={24} color="#007AFF" />
+              </View>
               <View style={styles.featureTextContainer}>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
                 <Text style={styles.featureDescription}>{feature.description}</Text>
@@ -97,6 +99,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   featureIcon: { marginRight: 16 },
+  featureIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,122,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
   featureTextContainer: { flex: 1 },
   featureTitle: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
   featureDescription: { fontSize: 15, color: '#666' },

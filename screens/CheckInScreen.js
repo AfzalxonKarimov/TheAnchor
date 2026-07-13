@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../src/supabase/client';
 import { calculateCheckInXP } from '../lib/leveling.js';
+import { updateMomentum } from '../lib/momentum.js';
+import { getStreak } from '../src/supabase/streaks.js';
 
 export default function CheckInScreen({ route, navigation }) {
   const { habit } = route.params;
@@ -54,7 +56,7 @@ export default function CheckInScreen({ route, navigation }) {
 
       if (sessionError) throw sessionError;
 
-      // Update user's XP in profile
+      // Update user's XP and momentum in profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('total_xp')
@@ -62,13 +64,20 @@ export default function CheckInScreen({ route, navigation }) {
         .single();
 
       if (profile) {
-        const newTotalXP = profile.total_xp + xpEarned;
-        const { error: profileError } = await supabase
+        const newTotalXP = (profile.total_xp || 0) + xpEarned;
+        // Get current streak for momentum calculation
+        const streak = await getStreak();
+        // Update momentum
+        await updateMomentum({
+          userId: user.id,
+          xpEarned,
+          durationSeconds: seconds,
+          streak,
+        });
+        await supabase
           .from('profiles')
           .update({ total_xp: newTotalXP })
           .eq('id', user.id);
-
-        if (profileError) console.warn('Could not update XP:', profileError);
       }
 
       console.log(`Finished ${habit.title} after ${seconds} seconds — earned ${xpEarned} XP`);

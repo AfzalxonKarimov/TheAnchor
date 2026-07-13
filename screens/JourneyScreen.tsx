@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  useColorScheme,
   Alert,
 } from 'react-native';
+import { useTheme } from '../src/theme/ThemeProvider';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ type JourneyScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 import { supabase } from '../src/supabase/client';
-import { getSessionsByAnchor } from '../src/supabase/sessions';
+import { getSessionsByAnchor, computeConsistency } from '../src/supabase/sessions';
 
 /**
  * Journey Screen - Manage all Anchors.
@@ -37,8 +37,7 @@ export default function JourneyScreen() {
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [anchorLastCheckins, setAnchorLastCheckins] = useState<Record<string, Date | null>>({});
   const [isLoading, setLoading] = useState(true);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTheme();
 
   const loadAnchors = useCallback(async () => {
     setLoading(true);
@@ -53,22 +52,32 @@ export default function JourneyScreen() {
         minimumDuration: a.minimum_duration,
         consistency: a.consistency,
       }));
-      setAnchors(anchorList);
 
-      // Load last check-in dates for each anchor
+      // Load last check-in dates AND a real consistency score for each anchor.
+      // Sessions are already fetched per anchor, so consistency reuses them (no extra queries).
       const checkinDates: Record<string, Date | null> = {};
+      const consistencyById: Record<string, number> = {};
       for (const anchor of anchorList) {
         try {
           const sessions = await getSessionsByAnchor(anchor.id);
+          consistencyById[anchor.id] = computeConsistency(sessions, anchor.targetDays ?? 7);
           if (sessions && sessions.length > 0) {
             checkinDates[anchor.id] = new Date(sessions[0].created_at);
           } else {
             checkinDates[anchor.id] = null;
           }
         } catch (e) {
+          consistencyById[anchor.id] = 0;
           checkinDates[anchor.id] = null;
         }
       }
+
+      // Override the (never-calculated) DB consistency with the computed score.
+      const anchorsWithConsistency = anchorList.map((a) => ({
+        ...a,
+        consistency: consistencyById[a.id] ?? 0,
+      }));
+      setAnchors(anchorsWithConsistency);
       setAnchorLastCheckins(checkinDates);
     } else if (error) {
       console.warn('Failed to load anchors:', error);
@@ -119,7 +128,30 @@ export default function JourneyScreen() {
     }
   };
 
-  const renderAnchor = ({ item }: { item: Anchor }) => (
+  // Derive the row's most important signal: done today / due / at-risk (stale).
+  const getAnchorStatus = (item: Anchor) => {
+    const last = anchorLastCheckins[item.id];
+    const today = new Date();
+    const isDoneToday = !!last && last.toDateString() === today.toDateString();
+
+    if (isDoneToday) {
+      return { label: '✓ Done today', color: colors.success, bg: `${colors.success}20` };
+    }
+
+    // "Stale" = no session in the last 3 days (or never) → at risk.
+    const daysSince = last
+      ? Math.floor((today.getTime() - last.getTime()) / 86400000)
+      : Infinity;
+    const isStale = daysSince > 2;
+
+    return isStale
+      ? { label: 'Due · at risk', color: colors.warning, bg: `${colors.warning}20` }
+      : { label: 'Due today', color: colors.neutral[600], bg: colors.neutral[200] };
+  };
+
+  const renderAnchor = ({ item }: { item: Anchor }) => {
+    const status = getAnchorStatus(item);
+    return (
     <TouchableOpacity
       style={[styles.anchorCard, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}
       onPress={() => handleEditAnchor(item)}
@@ -135,18 +167,24 @@ export default function JourneyScreen() {
         <Text style={styles.anchorDetails}>
           {item.targetDays} days • {item.minimumDuration} min / session
         </Text>
+        <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+          <Text style={[styles.statusBadgeText, { color: status.color }]}>
+            {status.label}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.anchorMeta}>
-        <Text style={[styles.consistencyText, { color: item.color }]}>
-          {item.consistency}%
+        <Text style={[styles.consistencyText, { color: isDark ? colors.dark.textMuted : colors.light.textMuted }]}>
+          {Math.round(item.consistency ?? 0)}%
         </Text>
         <Text style={[styles.lastCheckin, { color: colors.neutral[500] }]}>
-          {formatLastCheckin(anchorLastCheckins[item.id])}
+          Last: {formatLastCheckin(anchorLastCheckins[item.id])}
         </Text>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const handleAddAnchor = () => {
     navigation.navigate('AddHabit');
@@ -244,6 +282,17 @@ const styles = StyleSheet.create({
   },
   anchorInfo: {
     flex: 1,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: spacing.sm,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   anchorTitle: {
     fontSize: 17,

@@ -57,13 +57,15 @@ export default function LoginScreen({ navigation }) {
           )}
         </TouchableOpacity>
 
-        {/* Dev-only skip login button */}
+        {/* Dev-only skip login — kept intentionally low-prominence so it never
+            competes with the real auth CTA. Invisible in production (__DEV__). */}
         {__DEV__ && (
           <TouchableOpacity
-            style={[styles.googleButton, styles.devButton]}
+            style={styles.devButton}
             onPress={handleSkipLogin}
+            activeOpacity={0.6}
           >
-            <Text style={styles.googleButtonText}>Skip Login (Dev)</Text>
+            <Text style={styles.devButtonText}>Skip login (dev)</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -103,5 +105,14 @@ const styles = StyleSheet.create({
   googleButtonDisabled: { opacity: 0.7 },
   googleIcon: { marginRight: 10 },
   googleButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  devButton: { backgroundColor: '#FF3B30' },
+  devButton: {
+    marginTop: 28,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  devButtonText: {
+    color: '#A3A3A3',
+    fontSize: 14,
+    fontWeight: '500',
+  },
 });

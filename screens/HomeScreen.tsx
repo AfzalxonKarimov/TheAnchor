@@ -1,12 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  useColorScheme,
+  TouchableOpacity,
 } from 'react-native';
+import { useTheme } from '../src/theme/ThemeProvider';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/supabase/client';
@@ -14,10 +17,13 @@ import { supabase } from '../src/supabase/client';
 import {
   getLevelFromXP,
   getRankFromLevel,
+  getLevelProgress,
+  getXPForNextLevel,
 } from '../lib/leveling';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
-import { Anchor } from '../src/navigation/types';
+import { Anchor, RootStackParamList } from '../src/navigation/types';
 import { getTodaySessions } from '../src/supabase/sessions';
+import { getStreak } from '../src/supabase/streaks';
 
 // Identity lines keyed by rank
 const IDENTITY_LINES: Record<string, string> = {
@@ -39,14 +45,22 @@ const IDENTITY_LINES: Record<string, string> = {
  * - Anchor list showing all anchors with complete/incomplete state for today
  * - Floating button in tab bar for check-in initiation (auto-starts or shows picker)
  */
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
 export default function HomeScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [habits, setHabits] = useState<Anchor[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [xp, setXp] = useState(0);
   const [momentum, setMomentum] = useState(50);
+  const [streak, setStreak] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTheme();
 
   // Load profile data from Supabase
   const loadProfile = useCallback(async () => {
@@ -119,18 +133,33 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      if (__DEV__) {
-        setXp(100);
-        setMomentum(50);
-      }
-      await Promise.all([loadHabits(), loadSessions()]);
-      setIsLoading(false);
-    };
-    loadData();
-  }, [loadHabits, loadSessions]);
+  // Load current day streak (for the celebratory empty state)
+  const loadStreak = useCallback(async () => {
+    try {
+      const streakVal = await getStreak();
+      setStreak(streakVal || 0);
+    } catch (e) {
+      console.warn('Failed to load streak', e);
+      setStreak(0);
+    }
+  }, []);
+
+  // Reload anchors/sessions/profile on mount and whenever the screen is focused,
+  // so anchors created via the "+" button appear immediately.
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        setIsLoading(true);
+        if (__DEV__) {
+          setXp(100);
+          setMomentum(50);
+        }
+        await Promise.all([loadProfile(), loadHabits(), loadSessions(), loadStreak()]);
+        setIsLoading(false);
+      };
+      loadData();
+    }, [loadProfile, loadHabits, loadSessions, loadStreak])
+  );
 
   // Leveling calculations
   const level = getLevelFromXP(xp);
@@ -181,7 +210,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={[styles.title, { color: isDark ? colors.dark.text : colors.light.text }]}>
-            Welcome back
+            {getGreeting()}
           </Text>
           <View style={[styles.rankBadge, { backgroundColor: `${colors.primary}20` }]}>
             <Text style={[styles.rankText, { color: colors.primary }]}>
@@ -210,6 +239,22 @@ export default function HomeScreen() {
         <Text style={[styles.identityLine, { color: isDark ? colors.dark.textMuted : colors.light.textMuted }]}>
           {IDENTITY_LINES[rank] || IDENTITY_LINES.Spark}
         </Text>
+
+        {/* XP progress to next level */}
+        <View style={[styles.progressBar, { backgroundColor: colors.neutral[200] }]}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                backgroundColor: colors.primary,
+                width: `${getLevelProgress(xp) * 100}%`,
+              },
+            ]}
+          />
+        </View>
+        <Text style={styles.progressHint}>
+          Earn {getXPForNextLevel(xp) - xp} XP to reach Level {level + 1}
+        </Text>
       </View>
 
       <Text style={[styles.sectionTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>
@@ -227,13 +272,79 @@ export default function HomeScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderAnchor}
             contentContainerStyle={styles.list}
-            ListEmptyComponent={() => (
-              <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, { color: isDark ? colors.dark.textMuted : colors.light.textMuted }]}>
-                  All anchors completed today! Check back tomorrow or view all in Journey.
-                </Text>
-              </View>
-            )}
+            ListEmptyComponent={() =>
+              habits.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <FontAwesome5
+                    name="anchor"
+                    size={40}
+                    color={colors.neutral[300]}
+                    style={{ marginBottom: spacing.lg }}
+                  />
+                  <Text
+                    style={[
+                      styles.emptyText,
+                      {
+                        color: isDark ? colors.dark.textMuted : colors.light.textMuted,
+                        marginBottom: spacing.lg,
+                      },
+                    ]}
+                  >
+                    No anchors yet. Create your first one to start building momentum.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.addAnchorButton}
+                    onPress={() => navigation.navigate('AddHabit')}
+                    activeOpacity={0.7}
+                  >
+                    <FontAwesome5 name="plus" size={16} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.addAnchorButtonText}>Add Anchor</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <FontAwesome5
+                    name="check-circle"
+                    size={40}
+                    color={colors.success}
+                    style={{ marginBottom: spacing.md }}
+                  />
+                  <Text
+                    style={[
+                      styles.emptyTitle,
+                      { color: isDark ? colors.dark.text : colors.light.text },
+                    ]}
+                  >
+                    All done for today
+                  </Text>
+                  <Text
+                    style={[
+                      styles.emptyText,
+                      { color: isDark ? colors.dark.textMuted : colors.light.textMuted },
+                    ]}
+                  >
+                    Every anchor is checked in. Show up again tomorrow and the streak keeps building.
+                  </Text>
+
+                  <View style={styles.celebrationRow}>
+                    <View style={[styles.celebrationStat, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
+                      <FontAwesome5 name="fire" size={20} color={colors.warning} />
+                      <Text style={[styles.celebrationValue, { color: isDark ? colors.dark.text : colors.light.text }]}>
+                        {streak}
+                      </Text>
+                      <Text style={styles.celebrationLabel}>Day streak</Text>
+                    </View>
+                    <View style={[styles.celebrationStat, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
+                      <FontAwesome5 name="chart-line" size={20} color={colors.primary} />
+                      <Text style={[styles.celebrationValue, { color: isDark ? colors.dark.text : colors.light.text }]}>
+                        {momentum}
+                      </Text>
+                      <Text style={styles.celebrationLabel}>Momentum</Text>
+                    </View>
+                  </View>
+                </View>
+              )
+            }
           />
         </>
       )}
@@ -293,6 +404,22 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: spacing.sm,
   },
+  progressBar: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: spacing.lg,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressHint: {
+    fontSize: 12,
+    color: colors.neutral[400],
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
@@ -350,5 +477,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+  },
+  celebrationRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+  },
+  celebrationStat: {
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    minWidth: 110,
+  },
+  celebrationValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginTop: spacing.xs,
+  },
+  celebrationLabel: {
+    fontSize: 12,
+    color: colors.neutral[500],
+    marginTop: 2,
+  },
+  addAnchorButton: {
+    flexDirection: 'row',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  addAnchorButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });

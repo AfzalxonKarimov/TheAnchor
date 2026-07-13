@@ -6,14 +6,17 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
-  useColorScheme,
   Alert,
 } from 'react-native';
+import { useTheme } from '../src/theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, animation, baseStyles } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 import { supabase } from '../src/supabase/client';
+import { calculateCheckInXP } from '../lib/leveling';
+import { updateMomentum } from '../lib/momentum';
+import { getStreak } from '../src/supabase/streaks';
 
 interface SessionScreenProps {
   route: {
@@ -40,8 +43,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
   const [seconds, setSeconds] = useState(0); // Elapsed time
   const [isActive, setIsActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTheme();
 
   // Animation for pulse effect when timer is active
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -140,6 +142,8 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
 
     setIsSaving(true);
     try {
+      const xpEarned = calculateCheckInXP(seconds);
+
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -148,22 +152,48 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
         return;
       }
 
-      // Save session to Supabase - do NOT calculate XP as requested
+      // Save session to Supabase
       const { error: sessionError } = await supabase
         .from('sessions')
         .insert({
           anchor_id: anchorId,
           user_id: user.id,
           duration_seconds: seconds,
+          xp: xpEarned,
         });
 
       if (sessionError) {
         console.error('Failed to save session:', sessionError);
         Alert.alert('Error', 'Failed to save session. Please try again.');
       } else {
+        // Update user's XP and momentum in profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('total_xp')
+          .eq('id', user.id)
+          .single();
+
+        // Get current streak for momentum calculation
+        const streak = await getStreak();
+
+        if (profile) {
+          const newTotalXP = (profile.total_xp || 0) + xpEarned;
+          // Update momentum with streak
+          await updateMomentum({
+            userId: user.id,
+            xpEarned,
+            durationSeconds: seconds,
+            streak,
+          });
+          await supabase
+            .from('profiles')
+            .update({ total_xp: newTotalXP })
+            .eq('id', user.id);
+        }
+
         // Success - navigate back to Home
-        Alert.alert('Session Complete!', `You checked in for ${formatTime(seconds)}`, [
-          { text: 'OK', onPress: () => navigation.goBack() }
+        Alert.alert('Session Complete!', `+${xpEarned} XP earned`, [
+          { text: 'Nice', onPress: () => navigation.goBack() }
         ]);
         setSeconds(0);
       }

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { useTheme } from '../../theme/ThemeProvider';
 import {
   BottomTabBarProps,
   useBottomTabBarHeight,
@@ -7,7 +8,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingActionButton } from './FloatingActionButton';
 import { TabBarIcon } from './TabBarIcon';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { colors, navigationTokens, spacing, baseStyles } from '../../constants/theme';
 
 /**
@@ -25,8 +26,7 @@ export function BottomTabBar({
   descriptors,
   navigation,
 }: BottomTabBarProps) {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   // Get the tab that should have the floating button (center position)
@@ -138,11 +138,11 @@ export function BottomTabBar({
  * Map route names to icon names.
  * Single source of truth for tab icon mapping.
  */
-function getIconName(routeName: string): React.ComponentProps<typeof FontAwesome>['name'] {
-  const iconMap: Record<string, React.ComponentProps<typeof FontAwesome>['name']> = {
+function getIconName(routeName: string): React.ComponentProps<typeof FontAwesome5>['name'] {
+  const iconMap: Record<string, React.ComponentProps<typeof FontAwesome5>['name']> = {
     index: 'home',
     journey: 'compass',
-    progress: 'bar-chart',
+    progress: 'chart-bar',
     profile: 'user',
   };
   return iconMap[routeName] || 'circle';

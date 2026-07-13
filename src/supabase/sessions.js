@@ -1,4 +1,5 @@
 import { supabase } from './client';
+import { calculateCheckInXP } from '../../lib/leveling';
 
 // Fetch today's sessions for the current user
 export const getTodaySessions = async () => {
@@ -68,15 +69,10 @@ export const createSession = async ({ anchorId, durationSeconds, xp }) => {
   return data;
 };
 
-// Calculate XP for a session
-// Base: 20 XP per session
-// Bonus: +1 XP per minute, capped at +30 XP (30 min or more)
-// Max: 50 XP per session
+// Note: XP calculation is now handled by lib/leveling.js (calculateCheckInXP)
+// This function is kept for backward compatibility but delegates to the canonical source
 export const calculateSessionXP = (durationSeconds) => {
-  const minutes = Math.floor(durationSeconds / 60);
-  const baseXP = 20;
-  const bonusXP = Math.min(minutes, 30);
-  return baseXP + bonusXP; // Max 50 XP
+  return calculateCheckInXP(durationSeconds);
 };
 
 // Get total session time for current user
@@ -113,4 +109,97 @@ export const getTotalSessionCount = async () => {
   }
 
   return count || 0;
+};
+
+/**
+ * Get session counts bucketed by week for the current user, oldest → newest.
+ *
+ * Used by the Progress screen's momentum chart. Since momentum itself isn't stored
+ * as a time series, weekly session activity is the honest underlying driver.
+ *
+ * @param {number} weeks - number of weekly buckets to return (default 8)
+ * @returns {Promise<number[]>} array of length `weeks`, counts oldest → newest ([] if no user)
+ */
+export const getWeeklySessionCounts = async (weeks = 8) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const startMs = now - weeks * weekMs;
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('created_at')
+    .eq('user_id', user.id)
+    .gte('created_at', new Date(startMs).toISOString());
+
+  if (error) {
+    console.error('Error fetching weekly session counts:', error);
+    return new Array(weeks).fill(0);
+  }
+
+  const buckets = new Array(weeks).fill(0);
+  for (const s of data || []) {
+    const t = new Date(s.created_at).getTime();
+    if (isNaN(t)) continue;
+    let idx = Math.floor((t - startMs) / weekMs);
+    if (idx < 0) idx = 0;
+    if (idx > weeks - 1) idx = weeks - 1;
+    buckets[idx] += 1;
+  }
+  return buckets;
+};
+
+/**
+ * Compute a rolling consistency score (0–100) for an anchor from its session history.
+ *
+ * Definition: over the last 7 days, count the number of distinct days with a
+ * completed session, divide by the anchor's weekly target (`targetDays`), and cap at 100.
+ * A brand-new anchor with no sessions scores 0 (null-safe, never NaN/undefined).
+ *
+ * @param {Array<{created_at: string}>} sessions - session rows for the anchor
+ * @param {number} targetDays - anchor's target sessions per week
+ * @returns {number} consistency percentage (0–100)
+ */
+export const computeConsistency = (sessions, targetDays) => {
+  if (!sessions || sessions.length === 0) return 0;
+
+  const expected = Math.max(Number(targetDays) || 1, 1);
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(now.getDate() - 7);
+
+  const activeDays = new Set();
+  for (const s of sessions) {
+    const d = new Date(s.created_at);
+    if (!isNaN(d.getTime()) && d >= weekAgo) {
+      activeDays.add(d.toDateString());
+    }
+  }
+
+  const ratio = activeDays.size / expected;
+  return Math.min(Math.round(ratio * 100), 100);
+};
+
+// Subscribe to session changes in real-time (async to get user)
+export const subscribeToSessions = async (callback) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const subscription = supabase
+    .channel('sessions-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'sessions',
+        filter: `user_id=eq.${user.id}`
+      },
+      (payload) => callback(payload)
+    )
+    .subscribe();
+
+  return subscription;
 };

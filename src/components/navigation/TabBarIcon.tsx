@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { colors, navigationTokens, animation } from '../../constants/theme';
 
 interface TabBarIconProps {
-  /** Icon name from FontAwesome */
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  /** Icon name from FontAwesome5 */
+  name: React.ComponentProps<typeof FontAwesome5>['name'];
   /** Whether this tab is currently active */
   focused: boolean;
   /** Color to use when active (defaults to primary) */
@@ -52,7 +52,7 @@ export function TabBarIcon({ name, focused, activeColor }: TabBarIconProps) {
         opacity: opacityAnim,
       }}
     >
-      <FontAwesome
+      <FontAwesome5
         name={name}
         size={focused ? navigationTokens.iconSizeActive : navigationTokens.iconSize}
         color={color}

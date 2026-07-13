@@ -1,7 +1,9 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, Modal, Platform, useColorScheme } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, Modal, Platform } from 'react-native';
+import { useTheme } from '../theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FloatingActionButton } from '../components/navigation/FloatingActionButton';
 import { TabBarIcon } from '../components/navigation/TabBarIcon';
@@ -59,8 +61,7 @@ function CustomTabBar({
   navigation,
 }: any) {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTheme();
 
   // Modal state for anchor selection
   const [anchors, setAnchors] = useState<Anchor[]>([]);
@@ -72,7 +73,7 @@ function CustomTabBar({
     try {
       const { data, error } = await supabase.from('anchors').select('*');
       console.log('Anchors query result:', { dataLength: data?.length, error });
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         setAnchors(
           data.map((a: any) => ({
             id: a.id,
@@ -84,24 +85,13 @@ function CustomTabBar({
             consistency: a.consistency,
           }))
         );
-      } else if (__DEV__) {
-        // Dev mode fallback - always use fallback in dev mode
-        console.log('Using dev mode fallback anchors');
-        setAnchors([
-          { id: '1', title: 'Meditate', icon: 'leaf', color: '#34C759', targetDays: 7, minimumDuration: 15, consistency: 85 },
-          { id: '2', title: 'Read', icon: 'book', color: '#007AFF', targetDays: 5, minimumDuration: 20, consistency: 72 },
-          { id: '3', title: 'Workout', icon: 'futbol', color: '#FF3B30', targetDays: 5, minimumDuration: 30, consistency: 90 },
-        ]);
+      } else {
+        // No anchors (or error) -> show the real empty state, not fake placeholders.
+        setAnchors([]);
       }
     } catch (e) {
       console.warn('Error loading anchors:', e);
-      if (__DEV__) {
-        setAnchors([
-          { id: '1', title: 'Meditate', icon: 'leaf', color: '#34C759', targetDays: 7, minimumDuration: 15, consistency: 85 },
-          { id: '2', title: 'Read', icon: 'book', color: '#007AFF', targetDays: 5, minimumDuration: 20, consistency: 72 },
-          { id: '3', title: 'Workout', icon: 'futbol', color: '#FF3B30', targetDays: 5, minimumDuration: 30, consistency: 90 },
-        ]);
-      }
+      setAnchors([]);
     }
   }, []);
 
@@ -124,12 +114,21 @@ function CustomTabBar({
     }
   }, [todaySessions, anchors]);
 
-  useEffect(() => {
-    loadAnchors();
-    loadTodaySessions();
-  }, [loadAnchors, loadTodaySessions]);
+  // Reload on mount and whenever the tab regains focus, so anchors added
+  // elsewhere appear in the play-button flow.
+  useFocusEffect(
+    useCallback(() => {
+      loadAnchors();
+      loadTodaySessions();
+    }, [loadAnchors, loadTodaySessions])
+  );
 
   const centerTabIndex = 2; // Center position for floating button
+
+  // The FAB starts a check-in, which only makes sense on Home and Journey.
+  // Hide it on Progress (analytics) and Profile.
+  const activeRoute = state.routes[state.index]?.name;
+  const showFab = activeRoute === 'index' || activeRoute === 'journey';
 
   // Determine which anchors are due today (not yet completed)
   const anchorsDueToday = anchors.filter(anchor => {
@@ -203,9 +202,12 @@ function CustomTabBar({
             ))}
           </View>
 
-          {/* Center floating button */}
+          {/* Center floating button — only relevant on Home & Journey.
+              Hidden on Progress/Profile where starting a check-in makes no sense. */}
           <View style={styles.floatingContainer}>
-            <FloatingActionButton onPress={handleFloatingPress} />
+            {showFab && (
+              <FloatingActionButton label="Check In" onPress={handleFloatingPress} />
+            )}
           </View>
 
           {/* Right tabs (Progress, Profile) */}
@@ -266,7 +268,7 @@ function getIconName(routeName: string): any {
   const iconMap: Record<string, any> = {
     index: 'home',
     journey: 'compass',
-    progress: 'bar-chart',
+    progress: 'chart-bar',
     profile: 'user',
   };
   return iconMap[routeName] || 'circle';

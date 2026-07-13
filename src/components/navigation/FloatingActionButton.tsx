@@ -4,6 +4,7 @@ import {
   Easing,
   TouchableWithoutFeedback,
   Platform,
+  Text,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -14,6 +15,9 @@ interface FloatingActionButtonProps {
   onPress: () => void;
   /** Whether the button is disabled (e.g., loading state) */
   disabled?: boolean;
+  /** Optional text label. When provided, renders an extended pill (icon + label)
+   * instead of a bare circular button, making the action self-explanatory. */
+  label?: string;
 }
 
 /**
@@ -25,8 +29,9 @@ interface FloatingActionButtonProps {
  * - Pulse animation on mount to draw attention without being distracting
  * - Haptic feedback on press for tactile response
  * - Larger hit area (74x74) for accessibility while visually 64x64
+ * - When `label` is set, expands into a pill with an explanatory caption
  */
-export function FloatingActionButton({ onPress, disabled }: FloatingActionButtonProps) {
+export function FloatingActionButton({ onPress, disabled, label }: FloatingActionButtonProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
@@ -102,12 +107,14 @@ export function FloatingActionButton({ onPress, disabled }: FloatingActionButton
     <TouchableWithoutFeedback onPress={handlePress} disabled={disabled}>
       <Animated.View
         style={{
-          width: navigationTokens.floatingButtonSize,
+          width: label ? undefined : navigationTokens.floatingButtonSize,
           height: navigationTokens.floatingButtonSize,
+          paddingHorizontal: label ? 20 : 0,
           borderRadius: navigationTokens.floatingButtonSize / 2,
           backgroundColor: colors.primary,
           alignItems: 'center',
           justifyContent: 'center',
+          flexDirection: 'row',
           transform: [{ scale: scaleAnim }],
           // Elevation above tab bar - subtle shadow
           elevation: 8,
@@ -116,14 +123,16 @@ export function FloatingActionButton({ onPress, disabled }: FloatingActionButton
           shadowOpacity: 0.15,
           shadowRadius: 12,
           // Larger hit area for accessibility
-          marginLeft: -10, // Offset to center between tab bar items
+          marginLeft: label ? 0 : -10, // Offset to center between tab bar items when circular
         }}
       >
         {/* Subtle pulse glow behind button */}
         <Animated.View
           style={{
             position: 'absolute',
-            width: navigationTokens.floatingButtonSize + 8,
+            width: label
+              ? navigationTokens.floatingButtonSize + 40
+              : navigationTokens.floatingButtonSize + 8,
             height: navigationTokens.floatingButtonSize + 8,
             borderRadius: (navigationTokens.floatingButtonSize + 8) / 2,
             backgroundColor: colors.primary,
@@ -134,10 +143,15 @@ export function FloatingActionButton({ onPress, disabled }: FloatingActionButton
 
         <FontAwesome
           name="play"
-          size={28}
+          size={label ? 18 : 28}
           color="#FFFFFF"
-          style={{ marginLeft: 2 }} // Visual centering adjustment
+          style={label ? { marginRight: 8 } : { marginLeft: 2 }} // Visual centering adjustment
         />
+        {label ? (
+          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>
+            {label}
+          </Text>
+        ) : null}
       </Animated.View>
     </TouchableWithoutFeedback>
   );

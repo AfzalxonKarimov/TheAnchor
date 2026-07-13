@@ -9,8 +9,8 @@ import {
   ActivityIndicator,
   Platform,
   TextInput,
-  useColorScheme,
 } from 'react-native';
+import { useTheme } from '../src/theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -68,8 +68,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
   const [customDays, setCustomDays] = useState(
     String(editingAnchor?.targetDays || 7)
   );
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark } = useTheme();
 
   useEffect(() => {
     navigation.setOptions({

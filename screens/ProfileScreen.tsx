@@ -4,14 +4,16 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  useColorScheme,
   Switch,
 } from 'react-native';
+import { useTheme } from '../src/theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
 import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
 import { useAuth } from '../src/auth/AuthContext';
+import { supabase } from '../src/supabase/client';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Feature flag for subscription feature (easy to re-enable later)
 const SHOW_SUBSCRIPTION = false;
@@ -28,15 +30,32 @@ const SHOW_SUBSCRIPTION = false;
  */
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
-  const [xp, setXp] = useState(150);
+  const [xp, setXp] = useState(0);
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const { isDark, mode, setMode } = useTheme();
 
   const level = getLevelFromXP(xp);
   const rank = getRankFromLevel(level);
   const userEmail = user?.email || 'user@example.com';
+
+  // Load XP from profile on focus
+  useFocusEffect(() => {
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('total_xp')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        setXp(data.total_xp || 0);
+      }
+    };
+    loadProfile();
+  });
 
   const handleLogout = async () => {
     await signOut();
@@ -48,7 +67,7 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={styles.profileSection}>
           <View style={[styles.avatar, { backgroundColor: `${colors.primary}20` }]}>
-            <FontAwesome5 name="user" size={32} color={colors.primary} />
+            <FontAwesome5 name="anchor" size={32} color={colors.primary} />
           </View>
           <Text style={[styles.email, { color: isDark ? colors.dark.text : colors.light.text }]}>
             {userEmail}
@@ -73,8 +92,8 @@ export default function ProfileScreen() {
             icon="moon"
             label="Dark Mode"
             isToggle
-            value={darkMode}
-            onValueChange={setDarkMode}
+            value={mode === 'dark'}
+            onValueChange={(v) => setMode(v ? 'dark' : 'light')}
           />
           {SHOW_SUBSCRIPTION && (
             <SettingsItem icon="credit-card" label="Subscription" />
@@ -89,6 +108,16 @@ export default function ProfileScreen() {
         >
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
+
+        {/* Brand footer — fills the empty space below settings */}
+        <View style={styles.footer}>
+          <Text style={[styles.footerText, { color: colors.neutral[400] }]}>
+            TheAnchor
+          </Text>
+          <Text style={[styles.footerSubtext, { color: colors.neutral[300] }]}>
+            Built for the days your motivation runs out.
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -107,13 +136,26 @@ function SettingsItem({
   value?: boolean;
   onValueChange?: (value: boolean) => void;
 }) {
+  const { isDark } = useTheme();
   return (
-    <TouchableOpacity style={styles.settingsItem}>
+    <TouchableOpacity
+      style={[
+        styles.settingsItem,
+        { borderBottomColor: isDark ? colors.dark.border : colors.light.border },
+      ]}
+    >
       <View style={styles.settingsLeft}>
         <View style={[styles.settingsIcon, { backgroundColor: `${colors.primary}10` }]}>
           <FontAwesome5 name={icon as any} size={18} color={colors.primary} />
         </View>
-        <Text style={styles.settingsLabel}>{label}</Text>
+        <Text
+          style={[
+            styles.settingsLabel,
+            { color: isDark ? colors.dark.text : colors.light.text },
+          ]}
+        >
+          {label}
+        </Text>
       </View>
       {isToggle ? (
         <Switch
@@ -196,5 +238,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.error,
     fontWeight: '500',
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    paddingTop: spacing.xl,
+  },
+  footerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 0,
+  },
+  footerSubtext: {
+    fontSize: 12,
+    marginTop: 2,
+    textAlign: 'center',
   },
 });
