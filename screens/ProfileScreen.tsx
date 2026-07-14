@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
 import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
 import { useAuth } from '../src/auth/AuthContext';
-import { supabase } from '../src/supabase/client';
 import { useFocusEffect } from '@react-navigation/native';
+import { getProfile } from '../src/supabase/profiles';
 
 // Feature flag for subscription feature (easy to re-enable later)
 const SHOW_SUBSCRIPTION = false;
@@ -39,23 +39,21 @@ export default function ProfileScreen() {
   const userEmail = user?.email || 'user@example.com';
 
   // Load XP from profile on focus
-  useFocusEffect(() => {
-    const loadProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('total_xp')
-        .eq('id', user.id)
-        .single();
-
-      if (data) {
-        setXp(data.total_xp || 0);
-      }
-    };
-    loadProfile();
-  });
+  useFocusEffect(
+    useCallback(() => {
+      const loadProfile = async () => {
+        try {
+          const profile = await getProfile();
+          if (profile) {
+            setXp(profile.total_xp || 0);
+          }
+        } catch (e) {
+          console.warn('Failed to load profile', e);
+        }
+      };
+      loadProfile();
+    }, [])
+  );
 
   const handleLogout = async () => {
     await signOut();

@@ -24,6 +24,8 @@ import { spacing, typography, colors, baseStyles } from '../src/constants/theme'
 import { Anchor, RootStackParamList } from '../src/navigation/types';
 import { getTodaySessions } from '../src/supabase/sessions';
 import { getStreak } from '../src/supabase/streaks';
+import { getProfile } from '../src/supabase/profiles';
+import { settleMomentum } from '../lib/momentum';
 
 // Identity lines keyed by rank
 const IDENTITY_LINES: Record<string, string> = {
@@ -65,27 +67,14 @@ export default function HomeScreen() {
   // Load profile data from Supabase
   const loadProfile = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user && !__DEV__) {
-        // Will be handled by navigation root in production
-        return;
+      const profile = await getProfile();
+      if (profile) {
+        setXp(profile.total_xp || 0);
+        setMomentum(profile.momentum || 50);
       }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('total_xp, momentum')
-        .eq('id', user?.id || '')
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.warn('Failed to load profile:', error);
-      }
-
-      if (data) {
-        setXp(data.total_xp || 0);
-        setMomentum(data.momentum || 50);
-      }
+      // Settle any pending momentum decay and reflect the up-to-date value.
+      const settled = await settleMomentum();
+      if (settled != null) setMomentum(settled);
     } catch (e) {
       console.warn('Failed to load profile', e);
     }
@@ -150,10 +139,6 @@ export default function HomeScreen() {
     useCallback(() => {
       const loadData = async () => {
         setIsLoading(true);
-        if (__DEV__) {
-          setXp(100);
-          setMomentum(50);
-        }
         await Promise.all([loadProfile(), loadHabits(), loadSessions(), loadStreak()]);
         setIsLoading(false);
       };

@@ -1,5 +1,5 @@
 import { supabase } from './client';
-import { calculateCheckInXP } from '../../lib/leveling';
+import { calculateCheckInXP, getRankFromLevel } from '../../lib/leveling';
 
 // Fetch today's sessions for the current user
 export const getTodaySessions = async () => {
@@ -73,6 +73,91 @@ export const createSession = async ({ anchorId, durationSeconds, xp }) => {
 // This function is kept for backward compatibility but delegates to the canonical source
 export const calculateSessionXP = (durationSeconds) => {
   return calculateCheckInXP(durationSeconds);
+};
+
+/**
+ * Award XP for a completed check-in via the atomic Supabase RPC.
+ *
+ * This is the canonical write path on session finish. In a single transaction the
+ * `award_session_xp` function inserts the session row, increments profiles.total_xp,
+ * and recomputes profiles.level server-side — so concurrent check-ins can't clobber
+ * XP (no client read-modify-write race) and the stored level always matches total_xp.
+ *
+ * Rank is derived here in JS (from getRankFromLevel) rather than duplicated in SQL.
+ *
+ * @param {Object} params
+ * @param {string} params.anchorId          Anchor being checked in
+ * @param {number} params.durationSeconds    Tracked duration in seconds (> 0)
+ * @returns {Promise<{
+ *   xpAwarded: number,
+ *   newTotalXP: number,
+ *   oldLevel: number,
+ *   newLevel: number,
+ *   leveledUp: boolean,
+ *   oldRank: string,
+ *   newRank: string,
+ *   rankChanged: boolean,
+ * }>}
+ */
+export const awardSessionXP = async ({ anchorId, durationSeconds }) => {
+  // Ensure profile exists before awarding XP (handles new users who never created a profile).
+  // The RPC does SELECT ... FOR UPDATE then UPDATE profiles WHERE id = user_id,
+  // which silently succeeds (0 rows updated) if the profile row is missing.
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+    if (!profile) {
+      // Race-condition safe: if another session creates the profile concurrently,
+      // the insert fails with unique violation but that's fine — the profile exists.
+      try {
+        await supabase.from('profiles').insert({
+          id: user.id,
+          username: `user_${user.id.slice(0, 8)}`,
+          total_xp: 0,
+          level: 1,
+          momentum: 50,
+        });
+      } catch (e) {
+        // Profile may have been created by another concurrent session — ignore.
+      }
+    }
+  }
+
+  const { data, error } = await supabase.rpc('award_session_xp', {
+    p_anchor_id: anchorId,
+    p_duration_seconds: durationSeconds,
+  });
+
+  if (error) {
+    console.error('award_session_xp RPC failed:', error);
+    throw error;
+  }
+
+  // A table-returning function comes back as an array of rows.
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    throw new Error('award_session_xp returned no data');
+  }
+
+  const oldLevel = row.old_level;
+  const newLevel = row.new_level;
+  const oldRank = getRankFromLevel(oldLevel);
+  const newRank = getRankFromLevel(newLevel);
+
+  return {
+    xpAwarded: row.xp_awarded,
+    newTotalXP: row.new_total_xp,
+    oldLevel,
+    newLevel,
+    leveledUp: row.leveled_up,
+    oldRank,
+    newRank,
+    rankChanged: newRank !== oldRank,
+  };
 };
 
 // Get total session time for current user

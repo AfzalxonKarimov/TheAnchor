@@ -14,6 +14,8 @@ import { getLevelFromXP, getRankFromLevel, getLevelProgress, getXPForNextLevel }
 import { supabase } from '../src/supabase/client';
 import { getStreak } from '../src/supabase/streaks';
 import { getWeeklySessionCounts } from '../src/supabase/sessions';
+import { getProfile } from '../src/supabase/profiles';
+import { settleMomentum } from '../lib/momentum';
 
 /**
  * Progress Screen - Analytics dashboard.
@@ -38,10 +40,21 @@ export default function ProgressScreen() {
   const loadProgressData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Load profile data (XP, momentum) using shared helper
+      const profile = await getProfile();
+      if (profile) {
+        setXp(profile.total_xp || 0);
+        setMomentum(profile.momentum || 50);
+      }
+
+      // Settle any pending momentum decay and reflect the up-to-date value.
+      const settled = await settleMomentum();
+      if (settled != null) setMomentum(settled);
+
       if (!user) {
         // Dev (e.g. Skip Login) has no authenticated user, so there's no real
-        // data to chart. Seed a demo dashboard so the UI is visible while testing
-        // — mirrors the __DEV__ forcing already done on HomeScreen.
+        // data to chart. Seed a demo dashboard so the UI is visible while testing.
         if (__DEV__) {
           setXp(100);
           setMomentum(50);
@@ -49,18 +62,6 @@ export default function ProgressScreen() {
           setWeeklyStats({ sessions: 24, anchorsActive: 3, streak: 5 });
         }
         return;
-      }
-
-      // Load profile data (XP, momentum)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('total_xp, momentum')
-        .eq('id', user.id)
-        .single();
-
-      if (profile) {
-        setXp(profile.total_xp || 0);
-        setMomentum(profile.momentum || 50);
       }
 
       // Load this week's session count

@@ -14,9 +14,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, animation, baseStyles } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 import { supabase } from '../src/supabase/client';
-import { calculateCheckInXP } from '../lib/leveling';
+import { awardSessionXP } from '../src/supabase/sessions';
 import { updateMomentum } from '../lib/momentum';
 import { getStreak } from '../src/supabase/streaks';
+import LevelUpModal from '../src/components/LevelUpModal';
+
+interface LevelUpInfo {
+  newLevel: number;
+  newRank: string;
+  xpAwarded: number;
+  rankChanged: boolean;
+}
 
 interface SessionScreenProps {
   route: {
@@ -43,6 +51,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
   const [seconds, setSeconds] = useState(0); // Elapsed time
   const [isActive, setIsActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [levelUpInfo, setLevelUpInfo] = useState<LevelUpInfo | null>(null);
   const { isDark } = useTheme();
 
   // Animation for pulse effect when timer is active
@@ -142,9 +151,6 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
 
     setIsSaving(true);
     try {
-      const xpEarned = calculateCheckInXP(seconds);
-
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Error', 'Not authenticated');
@@ -152,50 +158,47 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
         return;
       }
 
-      // Save session to Supabase
-      const { error: sessionError } = await supabase
-        .from('sessions')
-        .insert({
-          anchor_id: anchorId,
-          user_id: user.id,
-          duration_seconds: seconds,
-          xp: xpEarned,
-        });
-
-      if (sessionError) {
-        console.error('Failed to save session:', sessionError);
+      // Atomic XP award + level recompute (single RPC round-trip).
+      // This inserts the session, increments total_xp, and recomputes level
+      // server-side so concurrent check-ins can't clobber XP.
+      let result;
+      try {
+        result = await awardSessionXP({ anchorId, durationSeconds: seconds });
+      } catch (rpcError) {
+        console.error('awardSessionXP failed:', rpcError);
         Alert.alert('Error', 'Failed to save session. Please try again.');
-      } else {
-        // Update user's XP and momentum in profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('total_xp')
-          .eq('id', user.id)
-          .single();
+        setIsSaving(false);
+        return;
+      }
 
-        // Get current streak for momentum calculation
+      // Momentum depends on the current streak; update it after XP is banked.
+      try {
         const streak = await getStreak();
+        await updateMomentum({
+          userId: user.id,
+          xpEarned: result.xpAwarded,
+          durationSeconds: seconds,
+          streak,
+        });
+      } catch (momentumError) {
+        // Momentum is non-critical — don't fail the session for it.
+        console.warn('Momentum update failed (non-fatal):', momentumError);
+      }
 
-        if (profile) {
-          const newTotalXP = (profile.total_xp || 0) + xpEarned;
-          // Update momentum with streak
-          await updateMomentum({
-            userId: user.id,
-            xpEarned,
-            durationSeconds: seconds,
-            streak,
-          });
-          await supabase
-            .from('profiles')
-            .update({ total_xp: newTotalXP })
-            .eq('id', user.id);
-        }
+      setSeconds(0);
 
-        // Success - navigate back to Home
-        Alert.alert('Session Complete!', `+${xpEarned} XP earned`, [
-          { text: 'Nice', onPress: () => navigation.goBack() }
+      // Surface the level-up moment, otherwise a simple confirmation.
+      if (result.leveledUp) {
+        setLevelUpInfo({
+          newLevel: result.newLevel,
+          newRank: result.newRank,
+          xpAwarded: result.xpAwarded,
+          rankChanged: result.rankChanged,
+        });
+      } else {
+        Alert.alert('Session Complete!', `+${result.xpAwarded} XP earned`, [
+          { text: 'Nice', onPress: () => navigation.goBack() },
         ]);
-        setSeconds(0);
       }
     } catch (e) {
       console.error('Session save error:', e);
@@ -248,6 +251,18 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
           )}
         </View>
       </View>
+
+      <LevelUpModal
+        visible={levelUpInfo !== null}
+        level={levelUpInfo?.newLevel ?? 0}
+        rank={levelUpInfo?.newRank ?? ''}
+        xpAwarded={levelUpInfo?.xpAwarded ?? 0}
+        rankChanged={levelUpInfo?.rankChanged}
+        onContinue={() => {
+          setLevelUpInfo(null);
+          navigation.goBack();
+        }}
+      />
     </SafeAreaView>
   );
 }
