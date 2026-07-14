@@ -28,11 +28,34 @@ export const createAnchor = async (anchor) => {
     throw new Error('User must be authenticated to create anchors');
   }
 
+  const title = (anchor.title || '').trim();
+  if (!title) {
+    throw new Error('Anchor name is required');
+  }
+
+  // Prevent duplicates: one anchor per title per user (case-insensitive).
+  // This is the first line of defense; the DB unique index (migration 0005)
+  // is the real guarantee against races.
+  const { data: existing, error: dupError } = await supabase
+    .from('anchors')
+    .select('id')
+    .eq('user_id', user.id)
+    .ilike('title', title)
+    .limit(1);
+
+  if (dupError) {
+    console.error('Error checking for duplicate anchor:', dupError);
+    throw dupError;
+  }
+  if (existing && existing.length > 0) {
+    throw new Error(`You already have an anchor called "${title}".`);
+  }
+
   const { data, error } = await supabase
     .from('anchors')
     .insert({
       user_id: user.id,
-      title: anchor.title,
+      title,
       color: anchor.color || '#007AFF',
       icon: anchor.icon || 'anchor',
       target_days: anchor.targetDays || 7,
@@ -42,6 +65,11 @@ export const createAnchor = async (anchor) => {
     .single();
 
   if (error) {
+    // 23505 = unique_violation: the DB unique index caught a duplicate that
+    // slipped past the check above (e.g. a rapid double-tap / race).
+    if (error.code === '23505') {
+      throw new Error(`You already have an anchor called "${title}".`);
+    }
     console.error('Error creating anchor:', error);
     throw error;
   }
@@ -65,6 +93,10 @@ export const updateAnchor = async (id, updates) => {
     .single();
 
   if (error) {
+    // 23505 = unique_violation: renaming onto an existing anchor title.
+    if (error.code === '23505') {
+      throw new Error(`You already have an anchor called "${updates.title}".`);
+    }
     console.error('Error updating anchor:', error);
     throw error;
   }

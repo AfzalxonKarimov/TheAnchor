@@ -14,7 +14,7 @@ import { useTheme } from '../src/theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { createAnchor, updateAnchor } from '../src/supabase/anchors';
+import { createAnchor, updateAnchor, getAnchors } from '../src/supabase/anchors';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 
@@ -61,6 +61,8 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
 
   const [isSaving, setIsSaving] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
+  // Lowercased titles the user already has — used to block adding a duplicate.
+  const [existingTitles, setExistingTitles] = useState<Set<string>>(new Set());
   const [customTitle, setCustomTitle] = useState(editingAnchor?.title || '');
   const [customDuration, setCustomDuration] = useState(
     String(editingAnchor?.minimumDuration || 15)
@@ -76,9 +78,37 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
     });
   }, [isEditing, navigation]);
 
+  // Load the user's current anchors so we can prevent adding one twice.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const anchors = await getAnchors();
+        if (!mounted) return;
+        setExistingTitles(
+          new Set(
+            (anchors || []).map((a: any) => (a.title || '').trim().toLowerCase())
+          )
+        );
+      } catch (e) {
+        // Non-fatal: without this list the DB unique index still blocks dupes.
+        console.warn('Failed to load existing anchors for dedupe', e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const handleSelectTemplate = async (template: typeof ANCHOR_TEMPLATES[0]) => {
     const finalTitle = template.title;
     console.log('handleSelectTemplate called:', finalTitle, 'isEditing:', isEditing);
+
+    // Block duplicates when creating (editing keeps its own title).
+    if (!isEditing && existingTitles.has(finalTitle.trim().toLowerCase())) {
+      Alert.alert('Already added', `You already have an anchor called "${finalTitle}".`);
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -139,6 +169,12 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
       return;
     }
 
+    // Block duplicates when creating a new custom anchor.
+    if (!isEditing && existingTitles.has(customTitle.trim().toLowerCase())) {
+      Alert.alert('Already added', `You already have an anchor called "${customTitle.trim()}".`);
+      return;
+    }
+
     const customTemplate = {
       id: 'custom',
       title: customTitle.trim(),
@@ -152,23 +188,37 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
     setShowCustomForm(false);
   };
 
-  const renderTemplate = ({ item }: { item: typeof ANCHOR_TEMPLATES[0] }) => (
-    <TouchableOpacity
-      style={[styles.templateCard, { borderColor: item.color, backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}
-      onPress={() => handleSelectTemplate(item)}
-      activeOpacity={isSaving ? 1 : 0.7}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
-        <FontAwesome5 name={item.icon} size={24} color={item.color} />
-      </View>
-      <View style={styles.templateInfo}>
-        <Text style={[styles.templateTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>{item.title}</Text>
-        <Text style={styles.templateDetails}>
-          {item.defaultDays} days • {item.defaultDuration} min
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderTemplate = ({ item }: { item: typeof ANCHOR_TEMPLATES[0] }) => {
+    const alreadyAdded = !isEditing && existingTitles.has(item.title.trim().toLowerCase());
+    return (
+      <TouchableOpacity
+        style={[
+          styles.templateCard,
+          { borderColor: item.color, backgroundColor: isDark ? colors.dark.surface : colors.light.surface },
+          alreadyAdded && styles.templateCardDisabled,
+        ]}
+        onPress={() => handleSelectTemplate(item)}
+        activeOpacity={isSaving || alreadyAdded ? 1 : 0.7}
+        disabled={alreadyAdded}
+      >
+        <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
+          <FontAwesome5 name={item.icon} size={24} color={item.color} />
+        </View>
+        <View style={styles.templateInfo}>
+          <Text style={[styles.templateTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>{item.title}</Text>
+          <Text style={styles.templateDetails}>
+            {item.defaultDays} days • {item.defaultDuration} min
+          </Text>
+        </View>
+        {alreadyAdded && (
+          <View style={styles.addedBadge}>
+            <FontAwesome5 name="check" size={11} color={colors.success} />
+            <Text style={styles.addedBadgeText}>Added</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.dark.background : colors.light.background }]}>
@@ -312,6 +362,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.lg,
+  },
+  templateCardDisabled: {
+    opacity: 0.5,
+  },
+  addedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: `${colors.success}20`,
+  },
+  addedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.success,
   },
   templateInfo: {
     flex: 1,
