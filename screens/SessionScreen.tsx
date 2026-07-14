@@ -176,7 +176,6 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
         const streak = await getStreak();
         await updateMomentum({
           userId: user.id,
-          xpEarned: result.xpAwarded,
           durationSeconds: seconds,
           streak,
         });

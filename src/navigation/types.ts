@@ -50,8 +50,11 @@ export type RootStackParamList = {
   // Modal/bottom sheet screens
   anchorSelection: undefined;
 
-  // Add/Edit habit screen
+  // Add habit screen (template-based creation)
   AddHabit: { anchor?: Anchor } | undefined;
+
+  // Dedicated edit form for a single existing anchor
+  EditAnchor: { anchor: Anchor };
 
   // Deprecated - kept for backward compatibility
   CheckIn: { habit: any };

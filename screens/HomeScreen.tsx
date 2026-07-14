@@ -204,11 +204,28 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Stats Row */}
+        {/* Momentum hero — persistent headline metric, shown in every state
+            (anchors due OR all done). Our core differentiator: a score that
+            dips and recovers, not a streak that resets to zero. */}
+        <View style={[styles.momentumCard, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
+          <View style={styles.momentumHeader}>
+            <FontAwesome5 name="chart-line" size={22} color={colors.primary} />
+            <Text style={styles.momentumLabel}>Momentum</Text>
+          </View>
+          <Text style={[styles.momentumValue, { color: isDark ? colors.dark.text : colors.light.text }]}>
+            {momentum}
+          </Text>
+          {streak > 0 && (
+            <Text style={styles.streakCaption}>Day {streak}</Text>
+          )}
+        </View>
+
+        {/* Stats Row — quick-glance context beneath the Momentum hero:
+            what's due, XP, Level. Momentum is intentionally NOT repeated here. */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Momentum</Text>
-            <Text style={styles.statValue}>{momentum} pts</Text>
+            <Text style={styles.statLabel}>Anchors due</Text>
+            <Text style={styles.statValue}>{anchorsDueToday.length}</Text>
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>XP</Text>
@@ -310,23 +327,6 @@ export default function HomeScreen() {
                   >
                     Every anchor is checked in. Show up again tomorrow and the streak keeps building.
                   </Text>
-
-                  <View style={styles.celebrationRow}>
-                    <View style={[styles.celebrationStat, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
-                      <FontAwesome5 name="fire" size={20} color={colors.warning} />
-                      <Text style={[styles.celebrationValue, { color: isDark ? colors.dark.text : colors.light.text }]}>
-                        {streak}
-                      </Text>
-                      <Text style={styles.celebrationLabel}>Day streak</Text>
-                    </View>
-                    <View style={[styles.celebrationStat, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
-                      <FontAwesome5 name="chart-line" size={20} color={colors.primary} />
-                      <Text style={[styles.celebrationValue, { color: isDark ? colors.dark.text : colors.light.text }]}>
-                        {momentum}
-                      </Text>
-                      <Text style={styles.celebrationLabel}>Momentum</Text>
-                    </View>
-                  </View>
                 </View>
               )
             }
@@ -468,28 +468,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: spacing.sm,
   },
-  celebrationRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.md,
-    marginTop: spacing.xl,
-  },
-  celebrationStat: {
+  momentumCard: {
     alignItems: 'center',
-    borderRadius: 16,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    minWidth: 110,
+    borderRadius: 20,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xxxl,
+    marginBottom: spacing.lg,
   },
-  celebrationValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginTop: spacing.xs,
+  momentumHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  celebrationLabel: {
-    fontSize: 12,
+  momentumLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  momentumValue: {
+    fontSize: 44,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+    lineHeight: 48,
+  },
+  streakCaption: {
+    fontSize: 13,
     color: colors.neutral[500],
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   addAnchorButton: {
     flexDirection: 'row',

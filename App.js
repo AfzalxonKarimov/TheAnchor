@@ -8,6 +8,7 @@ import LoginScreen from './screens/LoginScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import SessionScreen from './screens/SessionScreen';
 import AddHabitScreen from './screens/AddHabitScreen';
+import EditAnchorScreen from './screens/EditAnchorScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -54,6 +55,12 @@ export default function App() {
           <Stack.Screen
             name="AddHabit"
             component={AddHabitScreen}
+            options={{ headerShown: false, presentation: 'modal' }}
+          />
+          {/* EditAnchor screen for editing an existing anchor */}
+          <Stack.Screen
+            name="EditAnchor"
+            component={EditAnchorScreen}
             options={{ headerShown: false, presentation: 'modal' }}
           />
           {/* Session screen accessed via floating button */}

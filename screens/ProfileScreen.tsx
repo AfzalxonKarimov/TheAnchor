@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -12,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
 import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
 import { useAuth } from '../src/auth/AuthContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
 import { getProfile } from '../src/supabase/profiles';
 
 // Feature flag for subscription feature (easy to re-enable later)
@@ -30,8 +31,10 @@ const SHOW_SUBSCRIPTION = false;
  */
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
+  const navigation = useNavigation();
   const [xp, setXp] = useState(0);
   const [notifications, setNotifications] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const { isDark, mode, setMode } = useTheme();
 
   const level = getLevelFromXP(xp);
@@ -56,7 +59,24 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = async () => {
-    await signOut();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await signOut();
+      // Clearing the Supabase session sets `session` to null, but the app uses
+      // imperative navigation — nothing auto-redirects on sign-out. Reset the
+      // root stack back to Login so the user actually leaves the app.
+      const rootNav = navigation.getParent() ?? navigation;
+      rootNav.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Login' }],
+        })
+      );
+    } catch (e: any) {
+      setLoggingOut(false);
+      Alert.alert('Sign out failed', e?.message || 'Please try again.');
+    }
   };
 
   return (
@@ -103,8 +123,12 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.logoutRow}
           onPress={handleLogout}
+          disabled={loggingOut}
+          activeOpacity={0.7}
         >
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>
+            {loggingOut ? 'Logging Out…' : 'Log Out'}
+          </Text>
         </TouchableOpacity>
 
         {/* Brand footer — fills the empty space below settings */}
