@@ -56,7 +56,7 @@ export const createAnchor = async (anchor) => {
     .insert({
       user_id: user.id,
       title,
-      color: anchor.color || '#007AFF',
+      color: anchor.color || '#2DD4BF',
       icon: anchor.icon || 'anchor',
       target_days: anchor.targetDays || 7,
       minimum_duration: anchor.minimumDuration || 15,

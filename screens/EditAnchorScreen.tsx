@@ -27,7 +27,7 @@ const ICON_OPTIONS = [
 ];
 
 const COLOR_OPTIONS = [
-  '#007AFF', '#34C759', '#FF3B30', '#FF9500', '#5856D6',
+  colors.primary, '#34C759', '#FF3B30', '#FF9500', '#5856D6',
   '#AF52DE', '#FF2D55', '#5AC8FA', '#8E8E93',
 ];
 
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxl,
   },
   saveButtonText: {
-    color: '#fff',
+    color: colors.onAccent,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   deleteButtonText: {
-    color: colors.error,
+    color: colors.errorStrong,
     fontWeight: '600',
     fontSize: 16,
   },

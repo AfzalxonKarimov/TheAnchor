@@ -1,62 +1,64 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+import { Animated, Easing, View } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { colors, navigationTokens, animation } from '../../constants/theme';
+import { colors, navigationTokens } from '../../constants/theme';
+import { useThemeColors } from '../../theme/useThemeColors';
 
 interface TabBarIconProps {
-  /** Icon name from FontAwesome5 */
   name: React.ComponentProps<typeof FontAwesome5>['name'];
-  /** Whether this tab is currently active */
   focused: boolean;
-  /** Color to use when active (defaults to primary) */
   activeColor?: string;
 }
 
 /**
- * Animated tab bar icon component.
- *
- * Design decisions:
- * - Uses Animated.timing for smooth 60fps transitions
- * - Scales up slightly on focus to create subtle emphasis
- * - Fades color transition for premium feel
- * - No rotation/scale overshoot to keep it calm/minimal
+ * Animated tab bar icon. Active state gets a soft teal pill + spring scale,
+ * inactive stays muted and calm. Keeps motion gentle (no overshoot bounce).
  */
 export function TabBarIcon({ name, focused, activeColor }: TabBarIconProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const opacityAnim = useRef(new Animated.Value(focused ? 1 : 0.4)).current;
+  const pill = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Smooth scale animation on focus change
-    Animated.timing(scaleAnim, {
-      toValue: focused ? 1.1 : 1,
-      duration: animation.fast,
+    Animated.spring(scaleAnim, {
+      toValue: focused ? 1.12 : 1,
+      tension: 220,
+      friction: 18,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(pill, {
+      toValue: focused ? 1 : 0,
+      duration: 220,
       easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
+  }, [focused, scaleAnim, pill]);
 
-    // Smooth opacity fade for inactive state
-    Animated.timing(opacityAnim, {
-      toValue: focused ? 1 : 0.4,
-      duration: animation.fast,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-  }, [focused, scaleAnim, opacityAnim]);
-
-  const color = focused ? activeColor || colors.primary : colors.neutral[400];
+  const c = useThemeColors();
+  const tint = activeColor || colors.primary;
+  const color = focused ? tint : c.textMuted;
+  const pillOpacity = pill.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+  const pillScale = pill.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
 
   return (
-    <Animated.View
-      style={{
-        transform: [{ scale: scaleAnim }],
-        opacity: opacityAnim,
-      }}
-    >
-      <FontAwesome5
-        name={name}
-        size={focused ? navigationTokens.iconSizeActive : navigationTokens.iconSize}
-        color={color}
+    <View style={{ width: 56, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: 44,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: `${colors.primary}1F`,
+          opacity: pillOpacity,
+          transform: [{ scale: pillScale }],
+        }}
       />
-    </Animated.View>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <FontAwesome5
+          name={name}
+          size={focused ? navigationTokens.iconSizeActive : navigationTokens.iconSize}
+          color={color}
+        />
+      </Animated.View>
+    </View>
   );
 }

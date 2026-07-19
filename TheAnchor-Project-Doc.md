@@ -425,6 +425,60 @@ Every feature must answer one question: **"Does this help users regain momentum?
 
 ---
 
+## Technical Fixes Log
+
+### 2026-07-19 — Build / runtime errors fixed
+- **TypeScript compile error** (`FloatingActionButton.tsx`): `View` was used in the FAB's top-sheen but never imported from `react-native`. Added `View` to the import. `npx tsc --noEmit` now passes clean.
+- **Invalid icon warning** (`ProgressScreen.tsx`): the "Most in a day" stat used `icon="layers"`, which is not a valid FontAwesome5 *Free* name (logged as `"layers" is not a valid icon name for family "FontAwesome5Free-Regular"`). Replaced with `icon="calendar-alt"` (valid in the free set). This was the "layering" warning seen in the logs.
+- **"Linking configured in multiple places" error** (`App.js`): the `linking` config listed `Journey`/`Progress`/`Profile`/`Session` (capital) at the **top level**, but those are *nested tab screens* inside the `Index` (TabNavigator) screen. React Navigation treated the duplicate path registrations as conflicting linking sources. Fixed by nesting the tab routes under `Index` and using the real stack screen names (`session`, plus adding `EditAnchor`).
+- **Android multiple-root-instance risk** (`app.config.js`): added `android.launchMode: 'singleTask'` so a cold start / deep link can't spawn a second root component (the specific Android hint in the linking error).
+
+### Design-system refactor (this branch `security-clean-initial`)
+A shared UI kit was introduced to remove duplicated inline styles:
+- `src/components/ui/*` — reusable primitives (`Surface`, `IconBadge`, `ProgressRing`, `XPBar`, `StatTile`, `MomentumHero`, `AreaChart`, `Heatmap`, `Segmented`, etc.) exported via `src/components/ui/index.ts`.
+- `src/theme/useThemeColors.ts` — `useThemeColors()` hook returning a resolved, theme-adaptive palette (`accent`, `surface`, `text`, `hairline`, `glass`, …) so screens stop inlining `isDark ? colors.dark.x : colors.light.x`.
+- `src/supabase/analytics.js` — dashboard/analytics queries (`loadDashboardAnalytics`, `getPersonalRecords`, heatmap, trends, achievements).
+- Screens (`Home`, `Journey`, `Profile`, `Progress`, `Session`) and `LevelUpModal` now consume these instead of hand-rolled styles.
+
+---
+
+### 2026-07-19 — Apple HIG UI audit remediation
+A full-screen UI/UX audit (Apple Human Interface Guidelines lens, pre-Design-Award) was
+performed and the highest-priority, systemic issues fixed:
+
+- **Accessible color tokens added** (`src/constants/theme.ts`, `src/theme/useThemeColors.ts`):
+  `primaryStrong` (`#0F766E`, teal text on light surfaces), `onAccent` (`#06201D`, ink for
+  text/icon on teal **and** success fills), `errorStrong` (`#C0392B`, error text on light).
+- **Button/text contrast (AA)** — every primary/success CTA now uses `onAccent` ink instead of
+  white (was ~1.9:1, now ≥7:1). Teal used as *text* (eyebrows, rank chips, badges, segmented
+  labels, "YOU" tag) switched to `primaryStrong`; colored pill labels now use `c.text` with the
+  dot carrying the color signal.
+- **`textMuted` deepened** — light `#8A9694`→`#5C6B68`, dark `#6E7C79`→`#8A9694` so secondary
+  text clears WCAG AA on both themes. Tab inactive icons + sheet grabber now use theme-resolved
+  `textMuted`; placeholder color hardened to `neutral[500]`.
+- **iOS-blue leaks removed** — Onboarding & Login now consume `useThemeColors()` (no more
+  hardcoded `#fff`/`#666`/`#007AFF`, so they respect dark mode); Add/Edit anchor color palettes
+  and the custom-anchor fallback use the brand teal. Google's `#4285F4` kept as a brand exception.
+- **Spacing tokens made monotonic** — `lg` 16→20, `xxl` 24→32 so `md≠lg` and `xl≠xxl` (the
+  declared 8pt rhythm was previously broken by duplicate values).
+- **Add Anchor is no longer a dead-end** — added a Cancel/`times` header affordance.
+- **FAB gives feedback** — pressing it when nothing is due (or in the "done" state) now navigates
+  to Home instead of silently doing nothing; the `done` visual no longer swallows the tap.
+- **Empty states unified** — the Journey filtered-empty and Progress "No data yet" states now use
+  the shared `EmptyState` component.
+- **Session ring is responsive** — sized from `useWindowDimensions()` so it no longer clips on
+  narrow devices (e.g. iPhone SE).
+- **Reduced motion + no re-animation storms** — new `src/hooks/useReducedMotion.ts` gates the
+  perpetual XP shimmer and FAB pulse. `ProgressRing`/`MomentumHero`/`AreaChart` now animate only
+  on first appearance (this also fixed a live-timer bug where the session ring reset to 0 every
+  tick). `npx tsc --noEmit` passes clean.
+
+### Known follow-ups (not yet addressed)
+Icon-language unification (FontAwesome5 vs the custom monoline `AchievementGlyph` set, including
+duplicate `anchor`/`check`), the enforced typography scale (tokens overridden inline throughout),
+radius tokenization (hardcoded 12/14/16/20 still in Add/Edit forms), and a few sub-44pt tap
+targets (filter chips, Profile "Manage") remain open.
+
 ## Author Context
 - Builder: CS50 student, beginner programmer, building with heavy AI assistance (learning while shipping)
 - Built during a structured 10-week summer plan covering coding skill-building, fitness, a side hustle, and this project

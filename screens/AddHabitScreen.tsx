@@ -11,11 +11,12 @@ import {
   TextInput,
 } from 'react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
+import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { createAnchor, updateAnchor, getAnchors } from '../src/supabase/anchors';
-import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
+import { spacing, typography, colors } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 
 // Predefined anchor templates for users to pick from
@@ -71,6 +72,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
     String(editingAnchor?.targetDays || 7)
   );
   const { isDark } = useTheme();
+  const c = useThemeColors();
 
   useEffect(() => {
     navigation.setOptions({
@@ -179,7 +181,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
       id: 'custom',
       title: customTitle.trim(),
       icon: 'anchor',
-      color: '#007AFF',
+      color: colors.primary,
       defaultDuration: parseInt(customDuration, 10) || 15,
       defaultDays: parseInt(customDays, 10) || 7,
     };
@@ -222,6 +224,16 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.dark.background : colors.light.background }]}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <FontAwesome5 name="times" size={20} color={c.textMuted} />
+        </TouchableOpacity>
+        <View style={styles.headerButton} />
+      </View>
       <Text style={[styles.title, { color: isDark ? colors.dark.text : colors.light.text }]}>
         {isEditing ? 'Edit Your Anchor' : 'Choose Your Anchor'}
       </Text>
@@ -243,7 +255,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
         onPress={() => setShowCustomForm(true)}
         activeOpacity={isSaving ? 1 : 0.7}
       >
-        <Text style={[styles.customButtonText, { color: colors.primary }]}>+ Create Custom Anchor</Text>
+        <Text style={[styles.customButtonText, { color: colors.primaryStrong }]}>+ Create Custom Anchor</Text>
       </TouchableOpacity>
 
       {/* Custom Form Modal */}
@@ -263,7 +275,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
               value={customTitle}
               onChangeText={setCustomTitle}
               autoFocus
-              placeholderTextColor={colors.neutral[400]}
+              placeholderTextColor={colors.neutral[500]}
             />
             <View style={styles.customRow}>
               <TextInput
@@ -276,7 +288,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
                 value={customDuration}
                 onChangeText={setCustomDuration}
                 keyboardType="numeric"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.neutral[500]}
               />
               <TextInput
                 style={[styles.customInput, {
@@ -288,7 +300,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
                 value={customDays}
                 onChangeText={setCustomDays}
                 keyboardType="numeric"
-                placeholderTextColor={colors.neutral[400]}
+                placeholderTextColor={colors.neutral[500]}
               />
             </View>
             <View style={styles.modalButtons}>
@@ -323,6 +335,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: spacing.xl,
     paddingHorizontal: spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     ...typography.title,
@@ -459,14 +483,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonPrimary: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 8,
   },
   modalButtonText: {
     fontSize: 16,
   },
   modalButtonTextPrimary: {
-    color: '#fff',
+    color: colors.onAccent,
     fontWeight: '600',
   },
 });

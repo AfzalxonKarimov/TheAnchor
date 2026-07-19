@@ -2,349 +2,305 @@ import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
-import { useTheme } from '../src/theme/ThemeProvider';
+import { useThemeColors } from '../src/theme/useThemeColors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
-import { getLevelFromXP, getRankFromLevel, getLevelProgress, getXPForNextLevel } from '../lib/leveling';
-import { supabase } from '../src/supabase/client';
-import { getStreak } from '../src/supabase/streaks';
-import { getWeeklySessionCounts } from '../src/supabase/sessions';
+import { spacing, typography, colors, corner, shadow } from '../src/constants/theme';
+import { getLevelFromXP, getRankFromLevel, LEVEL_THRESHOLDS } from '../lib/leveling';
 import { getProfile } from '../src/supabase/profiles';
-import { settleMomentum } from '../lib/momentum';
+import { loadDashboardAnalytics } from '../src/supabase/analytics';
+import {
+  Surface,
+  SectionHeader,
+  StatTile,
+  AreaChart,
+  Heatmap,
+  AchievementBadge,
+  ProgressRing,
+  Reveal,
+  IconBadge,
+  EmptyState,
+} from '../src/components/ui';
 
-/**
- * Progress Screen - Analytics dashboard.
- *
- * Design decisions:
- * - Card-based layout for clear data separation
- * - Momentum graph placeholder for visualization
- * - Level and rank prominently displayed
- * - Smooth scroll for all content
- */
+interface Dash {
+  heatmap: any;
+  monthly: any[];
+  recovery: { score: number; hasData: boolean };
+  records: any;
+  weekly: number[];
+  achievements: any[];
+}
+
 export default function ProgressScreen() {
+  const c = useThemeColors();
   const [xp, setXp] = useState(0);
-  const [momentum, setMomentum] = useState(50);
-  const [weeklyStats, setWeeklyStats] = useState({
-    sessions: 0,
-    anchorsActive: 0,
-    streak: 0,
-  });
-  const [weeklyActivity, setWeeklyActivity] = useState<number[]>([]);
-  const { isDark } = useTheme();
+  const [dash, setDash] = useState<Dash | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loadProgressData = useCallback(async () => {
+  const load = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      // Load profile data (XP, momentum) using shared helper
       const profile = await getProfile();
-      if (profile) {
-        setXp(profile.total_xp || 0);
-        setMomentum(profile.momentum || 50);
-      }
-
-      // Settle any pending momentum decay and reflect the up-to-date value.
-      const settled = await settleMomentum();
-      if (settled != null) setMomentum(settled);
-
-      if (!user) {
-        // Dev (e.g. Skip Login) has no authenticated user, so there's no real
-        // data to chart. Seed a demo dashboard so the UI is visible while testing.
-        if (__DEV__) {
-          setXp(100);
-          setMomentum(50);
-          setWeeklyActivity([2, 4, 3, 5, 7, 6, 8, 5]);
-          setWeeklyStats({ sessions: 24, anchorsActive: 3, streak: 5 });
-        }
-        return;
-      }
-
-      // Load this week's session count
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-
-      const { count: sessionCount } = await supabase
-        .from('sessions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', weekAgo.toISOString());
-
-      // Load anchor count
-      const { count: anchorCount } = await supabase
-        .from('anchors')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      // Load streak
-      const streak = await getStreak();
-
-      // Load weekly activity for the momentum chart
-      const activity = await getWeeklySessionCounts(8);
-      setWeeklyActivity(activity);
-
-      setWeeklyStats({
-        sessions: sessionCount || 0,
-        anchorsActive: anchorCount || 0,
-        streak,
-      });
+      if (profile) setXp(profile.total_xp || 0);
+      const data = await loadDashboardAnalytics({ weeks: 26, months: 6 });
+      setDash(data as Dash);
     } catch (e) {
-      console.warn('Failed to load progress data:', e);
+      console.warn('Progress load failed', e);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  // Load data on focus
-  useFocusEffect(
-    useCallback(() => {
-      loadProgressData();
-    }, [loadProgressData])
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const level = getLevelFromXP(xp);
   const rank = getRankFromLevel(level);
+  const thisMonth = dash?.monthly?.[dash.monthly.length - 1];
+  const recovery = dash?.recovery?.score ?? 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.dark.background : colors.light.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: isDark ? colors.dark.text : colors.light.text }]}>
-            Progress
-          </Text>
-        </View>
-
-        {/* Level Card */}
-        <View style={[styles.card, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
-          <View style={styles.levelRow}>
-            <View>
-              <Text style={[styles.levelLabel, { color: colors.neutral[500] }]}>
-                Level {level}
-              </Text>
-              <Text style={[styles.levelText, { color: isDark ? colors.dark.text : colors.light.text }]}>
-                {rank}
-              </Text>
-            </View>
-            <View style={[styles.xpBadge, { backgroundColor: `${colors.primary}20` }]}>
-              <Text style={[styles.xpText, { color: colors.primary }]}>{xp} XP</Text>
-            </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Reveal>
+          <View style={styles.header}>
+            <Text style={[typography.display, { color: c.text, fontSize: 34 }]}>Progress</Text>
+            <Text style={[typography.small, { color: c.textMuted, marginTop: 2 }]}>
+              {rank} · Level {level}
+            </Text>
           </View>
+        </Reveal>
 
-          {/* Progress bar to next level */}
-          <View style={[styles.progressBar, { backgroundColor: colors.neutral[200] }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: colors.primary,
-                  width: `${getLevelProgress(xp) * 100}%`,
-                },
-              ]}
-            />
+        {isLoading ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
-          <Text style={styles.progressHint}>Earn {getXPForNextLevel(xp) - xp} XP to reach Level {level + 1}</Text>
-        </View>
+        ) : !dash ? (
+          <EmptyState
+            icon="chart-bar"
+            title="No data yet"
+            subtitle="Complete a few check-ins to see your consistency take shape."
+          />
+        ) : (
+          <>
+            {/* Recovery — hero section */}
+            <Reveal delay={60}>
+              <Surface radius="xl" style={[styles.card, styles.recoveryHero]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ProgressRing progress={recovery / 100} size={120} strokeWidth={12} glow>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[typography.display, { color: c.text, fontSize: 40 }]}>{recovery}</Text>
+                      <Text style={[typography.caption, { color: c.textMuted }]}>/100</Text>
+                    </View>
+                  </ProgressRing>
+                  <View style={{ flex: 1, marginLeft: spacing.xl }}>
+                    <Text style={[typography.eyebrow, { color: colors.primaryStrong }]}>RECOVERY SCORE</Text>
+                    <Text style={[typography.heading, { color: c.text, marginTop: spacing.xs }]}>How fast you bounce back</Text>
+                    <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.sm, lineHeight: 18 }]}>
+                      {recovery >= 75
+                        ? 'You return quickly after a miss. That’s the whole game.'
+                        : recovery >= 50
+                        ? 'Solid resilience. Shorter gaps keep this climbing.'
+                        : 'Every return shortens the gap. Show up today.'}
+                    </Text>
+                  </View>
+                </View>
+              </Surface>
+            </Reveal>
 
-        {/* Momentum Graph */}
-        <View style={[styles.card, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
-          <Text style={[styles.cardTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>
-            Momentum
-          </Text>
-          <MomentumBarChart data={weeklyActivity} isDark={isDark} />
-          <Text style={styles.chartCaption}>
-            {momentum} pts · last 8 weeks
-          </Text>
-        </View>
+            {/* Hero stats */}
+            <Reveal delay={100}>
+              <View style={styles.heroRow}>
+                <StatTile label="Focused hours" value={dash.records.totalHours} icon="clock" tint={colors.primary} />
+                <StatTile label="Longest streak" value={dash.records.longestStreak} icon="fire" tint={colors.warning} />
+              </View>
+            </Reveal>
 
-        {/* Weekly Stats */}
-        <View style={[styles.card, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}>
-          <Text style={[styles.cardTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>
-            This Week
-          </Text>
-          <View style={styles.statsGrid}>
-            <StatItem value={weeklyStats.sessions} label="Sessions" icon="clock" />
-            <StatItem value={weeklyStats.anchorsActive} label="Anchors Active" icon="anchor" />
-            <StatItem value={weeklyStats.streak} label="Day Streak" icon="fire" />
-          </View>
-        </View>
+            {/* Activity chart */}
+            <Reveal delay={140}>
+              <Surface radius="xl" style={styles.card}>
+                <SectionHeader title="Activity" subtitle="Sessions per week" />
+                <AreaChart
+                  data={dash.weekly}
+                  height={210}
+                  formatValue={(v) => `${v} sessions`}
+                />
+                <Text style={[typography.caption, { color: c.textMuted, textAlign: 'center', marginTop: spacing.md }]}>
+                  {dash.weekly.reduce((a, b) => a + b, 0)} sessions in the last {dash.weekly.length} weeks
+                </Text>
+              </Surface>
+            </Reveal>
+
+            {/* Consistency heatmap */}
+            <Reveal delay={180}>
+              <Surface radius="xl" style={styles.card}>
+                <SectionHeader title="Consistency" subtitle="Last 6 months" />
+                <Heatmap weeks={dash.heatmap.weeks} dates={dash.heatmap.dates} monthLabels={dash.heatmap.monthLabels} />
+              </Surface>
+            </Reveal>
+
+            {/* This month */}
+            <Reveal delay={220}>
+              <Surface radius="xl" style={styles.card}>
+                <SectionHeader title="This month" subtitle={thisMonth?.label} />
+                <View style={styles.monthGrid}>
+                  <MonthStat icon="calendar-check" label="Sessions" value={thisMonth?.sessions ?? 0} tint={colors.primary} />
+                  <MonthStat icon="hourglass-half" label="Minutes" value={thisMonth?.minutes ?? 0} tint={colors.accentGlow} />
+                  <MonthStat icon="calendar-day" label="Active days" value={thisMonth?.activeDays ?? 0} tint={colors.success} />
+                  <MonthStat icon="bolt" label="Best day" value={thisMonth?.bestDay ?? 0} tint={colors.warning} />
+                </View>
+              </Surface>
+            </Reveal>
+
+            {/* Achievements */}
+            <Reveal delay={260}>
+              <SectionHeader title="Achievements" subtitle={`${dash.achievements.filter((a) => a.unlocked).length} of ${dash.achievements.length}`} />
+              <Surface radius="xl" style={styles.card}>
+                <View style={styles.achGrid}>
+                  {dash.achievements.map((a: any) => (
+                    <AchievementBadge key={a.key} glyph={a.glyph} title={a.title} unlocked={a.unlocked} />
+                  ))}
+                </View>
+              </Surface>
+            </Reveal>
+
+            {/* Personal records */}
+            <Reveal delay={300}>
+              <Surface radius="xl" style={styles.card}>
+                <SectionHeader title="Personal records" />
+                <View style={styles.recGrid}>
+                  <Record icon="hourglass" label="Longest session" value={`${dash.records.longestSessionMin} min`} />
+                  <Record icon="calendar-alt" label="Most in a day" value={`${dash.records.mostInDay}`} />
+                  <Record icon="check-circle" label="Total check-ins" value={`${dash.records.totalCheckins}`} />
+                  <Record icon="fire" label="Current streak" value={`${dash.records.currentStreak}`} />
+                </View>
+              </Surface>
+            </Reveal>
+
+            {/* Level timeline */}
+            <Reveal delay={340}>
+              <Surface radius="xl" style={styles.card}>
+                <SectionHeader title="Level timeline" subtitle="Your climb" />
+                <LevelTimeline level={level} />
+              </Surface>
+            </Reveal>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MomentumBarChart({ data, isDark }: { data: number[]; isDark: boolean }) {
-  const hasActivity = data.length > 0 && data.some((n) => n > 0);
-
-  if (!hasActivity) {
-    return (
-      <View style={styles.chartEmpty}>
-        <FontAwesome5 name="chart-line" size={36} color={colors.neutral[300]} />
-        <Text style={styles.chartEmptyText}>No activity yet</Text>
-        <Text style={styles.chartEmptySubtext}>
-          Complete check-ins to build your momentum
-        </Text>
-      </View>
-    );
-  }
-
-  const max = Math.max(1, ...data);
-
+function MonthStat({ icon, label, value, tint }: { icon: string; label: string; value: number; tint: string }) {
+  const c = useThemeColors();
   return (
-    <View style={styles.chartRow}>
-      {data.map((count, i) => {
-        const heightPct = Math.max(4, (count / max) * 96);
-        return (
-          <View key={i} style={styles.chartBarWrap}>
-            <View
-              style={[
-                styles.chartBar,
-                {
-                  height: heightPct,
-                  backgroundColor: colors.primary,
-                  opacity: count === 0 ? 0.15 : 1,
-                },
-              ]}
-            />
-          </View>
-        );
-      })}
+    <View style={styles.monthStat}>
+      <IconBadge name={icon} color={tint} box={32} size={14} />
+      <Text style={[typography.heading, { color: c.text, fontSize: 22, marginTop: spacing.sm }]}>{value}</Text>
+      <Text style={[typography.caption, { color: c.textMuted }]}>{label}</Text>
     </View>
   );
 }
 
-function StatItem({ value, label, icon }: { value: number; label: string; icon: string }) {
+function Record({ icon, label, value }: { icon: string; label: string; value: string }) {
+  const c = useThemeColors();
   return (
-    <View style={styles.statItem}>
-      <FontAwesome5 name={icon as any} size={20} color={colors.primary} style={styles.statIcon} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View style={[styles.recItem, { backgroundColor: c.surfaceAlt, borderColor: c.hairline }]}>
+      <IconBadge name={icon} color={colors.primary} box={30} size={13} />
+      <Text style={[typography.heading, { color: c.text, fontSize: 18, marginTop: spacing.sm }]}>{value}</Text>
+      <Text style={[typography.caption, { color: c.textMuted, marginTop: 2 }]}>{label}</Text>
+    </View>
+  );
+}
+
+/**
+ * Horizontal level timeline — nodes on a rail. Current level is filled +
+ * glowing with a "YOU" tag; past nodes are teal-tinted; future nodes
+ * fade back. Replaces the old stack of level cards.
+ */
+function LevelTimeline({ level }: { level: number }) {
+  const c = useThemeColors();
+  return (
+    <View style={{ position: 'relative' }}>
+      <View
+        style={{
+          position: 'absolute',
+          left: 56,
+          right: 56,
+          top: 21,
+          height: 3,
+          borderRadius: 2,
+          backgroundColor: c.hairline,
+        }}
+      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeline}>
+        {LEVEL_THRESHOLDS.map((thr, i) => {
+          const lv = i + 1;
+          const isCurrent = lv === level;
+          const isPast = lv < level;
+          const isFuture = lv > level;
+          return (
+            <View key={lv} style={[styles.tlNode, { opacity: isFuture ? 0.5 : 1 }]}>
+              {isCurrent && (
+                <View style={[styles.tlYou, { backgroundColor: `${colors.primary}1F` }]}>
+                  <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700' }]}>YOU</Text>
+                </View>
+              )}
+              <View
+                style={[
+                  styles.tlDot,
+                  {
+                    backgroundColor: isCurrent ? colors.primary : isPast ? `${colors.primary}24` : c.surfaceAlt,
+                    borderColor: isCurrent ? colors.primary : isPast ? `${colors.primary}55` : c.hairline,
+                    ...(isCurrent ? shadow.glow : {}),
+                  },
+                ]}
+              >
+                {isCurrent && <View style={styles.tlCore} />}
+              </View>
+              <Text
+                style={[
+                  typography.caption,
+                  {
+                    color: isCurrent ? colors.primary : isFuture ? c.textMuted : c.text,
+                    fontWeight: isCurrent ? '700' : '500',
+                    marginTop: spacing.sm,
+                  },
+                ]}
+              >
+                Lv {lv}
+              </Text>
+              <Text style={[typography.caption, { color: c.textMuted, fontSize: 10 }]}>{thr} XP</Text>
+            </View>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.xl,
-  },
-  header: {
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.title,
-    fontWeight: '700',
-  },
-  card: {
-    borderRadius: 16,
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  levelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  levelLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  levelText: {
-    ...typography.title,
-    fontWeight: '700',
-  },
-  xpBadge: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-  },
-  xpText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressHint: {
-    fontSize: 12,
-    color: colors.neutral[400],
-    textAlign: 'center',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: spacing.lg,
-  },
-  chartRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 110,
-    gap: spacing.sm,
-  },
-  chartBarWrap: {
-    flex: 1,
-    height: '100%',
-    justifyContent: 'flex-end',
-    alignItems: 'stretch',
-  },
-  chartBar: {
-    width: '100%',
-    borderRadius: 6,
-    minHeight: 4,
-  },
-  chartCaption: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.neutral[500],
-    textAlign: 'center',
-    marginTop: spacing.md,
-  },
-  chartEmpty: {
-    ...baseStyles.flexCenter,
-    height: 110,
-  },
-  chartEmptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.neutral[500],
-    marginTop: spacing.sm,
-  },
-  chartEmptySubtext: {
-    fontSize: 12,
-    color: colors.neutral[400],
-    marginTop: 2,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    ...baseStyles.flexCenter,
-  },
-  statIcon: {
-    marginBottom: spacing.sm,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.neutral[700],
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.neutral[500],
-    marginTop: 4,
-  },
+  container: { flex: 1 },
+  scroll: { padding: spacing.xl, paddingBottom: spacing.xxxxl },
+  header: { marginBottom: spacing.lg },
+  loading: { paddingVertical: spacing.xxxxl, alignItems: 'center' },
+  heroRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  card: { padding: spacing.xl, marginBottom: spacing.lg },
+  monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  monthStat: { width: '47%', backgroundColor: undefined, marginBottom: spacing.sm },
+  recoveryRow: { flexDirection: 'row', alignItems: 'center' },
+  achGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.lg },
+  recGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  recItem: { width: '47%', borderRadius: corner.md, padding: spacing.lg, borderWidth: 1 },
+  recoveryHero: { paddingVertical: spacing.xl },
+  timeline: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
+  tlNode: { alignItems: 'center', width: 58, position: 'relative' },
+  tlDot: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  tlCore: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#fff' },
+  tlYou: { position: 'absolute', top: -10, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: corner.pill },
 });

@@ -44,6 +44,9 @@ module.exports = {
         backgroundColor: '#ffffff',
       },
       edgeToEdgeEnabled: true,
+      // Prevent multiple root-component instances on cold-start/deep-link, which
+      // React Navigation reports as "linking configured in multiple places".
+      launchMode: 'singleTask',
       package: 'com.afzalto.theanchor',
     },
     web: {

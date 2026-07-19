@@ -9,89 +9,62 @@ import {
   Easing,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { useTheme } from '../theme/ThemeProvider';
-import { spacing, typography, colors, baseStyles } from '../constants/theme';
+import { useThemeColors } from '../theme/useThemeColors';
+import { spacing, typography, colors, corner } from '../constants/theme';
+import { FloatingParticles } from './ui';
 
 interface LevelUpModalProps {
   visible: boolean;
   level: number;
   rank: string;
   xpAwarded: number;
-  /** True when this level-up also crossed into a new rank (Spark → Ember, …). */
   rankChanged?: boolean;
   onContinue: () => void;
 }
 
 /**
- * LevelUpModal — the "level-up moment" shown after a check-in that crosses a
- * level threshold. Premium/minimal per the design system: one FA5 icon in a
- * tinted squircle, theme tokens only, semantic color (primary = achievement),
- * works in light and dark. No dead-end — always offers a forward action.
+ * The "level-up moment." Premium/calm: one teal icon, spring entrance, a soft
+ * particle burst, works in light + dark. Always a forward action.
  */
-export default function LevelUpModal({
-  visible,
-  level,
-  rank,
-  xpAwarded,
-  rankChanged = false,
-  onContinue,
-}: LevelUpModalProps) {
-  const { isDark } = useTheme();
+export default function LevelUpModal({ visible, level, rank, xpAwarded, rankChanged = false, onContinue }: LevelUpModalProps) {
+  const c = useThemeColors();
   const scale = useRef(new Animated.Value(0.9)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const [burst, setBurst] = React.useState(0);
 
   useEffect(() => {
     if (visible) {
       scale.setValue(0.9);
       opacity.setValue(0);
+      setBurst((b) => b + 1);
       Animated.parallel([
-        Animated.spring(scale, {
-          toValue: 1,
-          friction: 7,
-          tension: 60,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 200,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
+        Animated.spring(scale, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.ease), useNativeDriver: true }),
       ]).start();
     }
   }, [visible, scale, opacity]);
 
-  const theme = isDark ? colors.dark : colors.light;
-
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onContinue}>
       <View style={styles.backdrop}>
-        <Animated.View
-          style={[
-            styles.card,
-            baseStyles.shadow,
-            { backgroundColor: theme.surface, opacity, transform: [{ scale }] },
-          ]}
-        >
-          {/* Tinted squircle icon */}
-          <View style={styles.iconContainer}>
+        <FloatingParticles trigger={burst} color={c.accentSoft} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+        <Animated.View style={[styles.card, { backgroundColor: c.surface, opacity, transform: [{ scale }] }]}>
+          <View style={[styles.iconContainer, { backgroundColor: `${colors.primary}1F`, shadowColor: colors.accentGlow, shadowOpacity: 0.4, shadowRadius: 18, shadowOffset: { width: 0, height: 0 } }]}>
             <FontAwesome5 name="angle-double-up" size={30} color={colors.primary} />
           </View>
 
-          <Text style={styles.eyebrow}>LEVEL UP</Text>
-
-          <Text style={[styles.level, { color: theme.text }]}>Level {level}</Text>
-
-          <Text style={[styles.rank, { color: theme.textSecondary }]}>
+          <Text style={[typography.eyebrow, { color: colors.primaryStrong }]}>LEVEL UP</Text>
+          <Text style={[typography.display, { color: c.text, fontSize: 34, marginTop: spacing.xs }]}>Level {level}</Text>
+          <Text style={[typography.body, { color: c.textSecondary, marginTop: spacing.xs }]}>
             {rankChanged ? `New rank · ${rank}` : `Rank · ${rank}`}
           </Text>
 
-          <View style={[styles.xpPill, { backgroundColor: `${colors.success}1A` }]}>
-            <FontAwesome5 name="bolt" size={12} color={colors.success} />
-            <Text style={[styles.xpText, { color: colors.success }]}>+{xpAwarded} XP</Text>
+          <View style={[styles.xpPill, { backgroundColor: `${colors.success}1F` }]}>
+            <FontAwesome5 name="bolt" size={13} color={colors.success} />
+            <Text style={[typography.small, { color: colors.onAccent, fontWeight: '700', marginLeft: 6 }]}>+{xpAwarded} XP</Text>
           </View>
 
-          <TouchableOpacity style={styles.button} onPress={onContinue} activeOpacity={0.85}>
+          <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={onContinue} activeOpacity={0.85}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -104,63 +77,39 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    ...baseStyles.flexCenter,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: spacing.xl,
   },
   card: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: 24,
+    borderRadius: corner.xl,
     padding: spacing.xxl,
     alignItems: 'center',
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: `${colors.primary}1A`,
-    ...baseStyles.flexCenter,
-    marginBottom: spacing.lg,
-  },
-  eyebrow: {
-    ...typography.caption,
-    letterSpacing: 2,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  level: {
-    ...typography.title,
-    fontSize: 32,
-    marginBottom: spacing.xs,
-  },
-  rank: {
-    ...typography.body,
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.lg,
   },
   xpPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
-    borderRadius: 20,
-    marginBottom: spacing.xxl,
-  },
-  xpText: {
-    ...typography.small,
-    fontWeight: '700',
+    borderRadius: corner.pill,
+    marginTop: spacing.lg,
   },
   button: {
     width: '100%',
-    backgroundColor: colors.primary,
     paddingVertical: spacing.lg,
-    borderRadius: 16,
+    borderRadius: corner.md,
     alignItems: 'center',
+    marginTop: spacing.xxl,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  buttonText: { color: colors.onAccent, fontSize: 16, fontWeight: '700' },
 });

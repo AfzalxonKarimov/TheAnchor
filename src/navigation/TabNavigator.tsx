@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, FlatList, Modal, Platform } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { useThemeColors } from '../theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
@@ -62,6 +63,7 @@ function CustomTabBar({
 }: any) {
   const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
+  const c = useThemeColors();
 
   // Modal state for anchor selection
   const [anchors, setAnchors] = useState<Anchor[]>([]);
@@ -125,10 +127,10 @@ function CustomTabBar({
 
   const centerTabIndex = 2; // Center position for floating button
 
-  // The FAB starts a check-in, which only makes sense on Home and Journey.
-  // Hide it on Progress (analytics) and Profile.
-  const activeRoute = state.routes[state.index]?.name;
-  const showFab = activeRoute === 'index' || activeRoute === 'journey';
+  // The FAB starts a check-in. It stays visible on every tab (including Profile),
+  // so check-in is always reachable. Flip this to `activeRoute !== 'aicoach'` if a
+  // future AI Coach tab shouldn't show it.
+  const showFab = true;
 
   // Determine which anchors are due today (not yet completed)
   const anchorsDueToday = anchors.filter(anchor => {
@@ -148,7 +150,9 @@ function CustomTabBar({
     }
 
     if (anchorsDueToday.length === 0) {
-      console.log('No anchors due today');
+      // Nothing to check in right now — surface Home (today's view) so the
+      // tap does something visible rather than silently doing nothing.
+      navigation.navigate('index');
       return;
     }
 
@@ -202,18 +206,21 @@ function CustomTabBar({
             ))}
           </View>
 
-          {/* Center floating button — only relevant on Home & Journey.
-              Hidden on Progress/Profile where starting a check-in makes no sense. */}
+          {/* Center floating button — visible on every tab (see `showFab`).
+              Renders between the two tab groups so all four tabs stay reachable. */}
           <View style={styles.floatingContainer}>
             {showFab && (
-              <FloatingActionButton label="Check In" onPress={handleFloatingPress} />
+              <FloatingActionButton
+                done={anchors.length > 0 && anchorsDueToday.length === 0}
+                onPress={handleFloatingPress}
+              />
             )}
           </View>
 
           {/* Right tabs (Progress, Profile) */}
           <View style={styles.sideTabs}>
-            {state.routes.slice(centerTabIndex + 1).map((route: any, index: number) => {
-              const actualIndex = index + centerTabIndex + 1;
+            {state.routes.slice(centerTabIndex).map((route: any, index: number) => {
+              const actualIndex = index + centerTabIndex;
               return (
                 <TabBarItem
                   key={route.key}
@@ -235,6 +242,7 @@ function CustomTabBar({
       >
         <AnchorSelectionModal
           anchors={anchorsDueToday}
+          c={c}
           onClose={() => setModalVisible(false)}
           onSelect={handleSelectAnchor}
         />
@@ -279,10 +287,12 @@ function getIconName(routeName: string): any {
  */
 function AnchorSelectionModal({
   anchors,
+  c,
   onClose,
   onSelect,
 }: {
   anchors: Anchor[];
+  c: any;
   onClose: () => void;
   onSelect: (anchor: Anchor) => void;
 }) {
@@ -290,13 +300,13 @@ function AnchorSelectionModal({
     <View style={styles.modalContainer}>
       <View style={styles.backdrop} />
       {/* Grab indicator */}
-      <View style={styles.grabIndicator} />
+      <View style={[styles.grabIndicator, { backgroundColor: c.textMuted }]} />
 
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Select Anchor</Text>
+      <View style={[styles.modalContent, { backgroundColor: c.surface }]}>
+        <View style={[styles.modalHeader, { borderBottomColor: c.hairline }]}>
+          <Text style={[styles.modalTitle, { color: c.text }]}>Select Anchor</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeText}>Cancel</Text>
+            <Text style={[styles.closeText, { color: c.accentStrong }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
 
@@ -306,15 +316,15 @@ function AnchorSelectionModal({
           contentContainerStyle={styles.modalList}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[styles.anchorItem, { borderColor: item.color }]}
+              style={[styles.anchorItem, { borderColor: item.color, backgroundColor: c.surface }]}
               onPress={() => onSelect(item)}
             >
               <View style={[styles.anchorIcon, { backgroundColor: `${item.color}20` }]}>
                 <FontAwesome5 name={item.icon as any} size={20} color={item.color} />
               </View>
               <View style={styles.anchorInfo}>
-                <Text style={styles.anchorTitle}>{item.title}</Text>
-                <Text style={styles.anchorDetails}>
+                <Text style={[styles.anchorTitle, { color: c.text }]}>{item.title}</Text>
+                <Text style={[styles.anchorDetails, { color: c.textMuted }]}>
                   {item.targetDays} days • {item.minimumDuration} min
                 </Text>
               </View>
@@ -322,7 +332,7 @@ function AnchorSelectionModal({
           )}
           ListEmptyComponent={() => (
             <View style={styles.emptyAnchors}>
-              <Text style={styles.emptyText}>No anchors yet. Create one in Journey.</Text>
+              <Text style={[styles.emptyText, { color: c.textMuted }]}>No anchors yet. Create one in Journey.</Text>
             </View>
           )}
         />
@@ -377,7 +387,6 @@ const styles = StyleSheet.create({
   grabIndicator: {
     width: 40,
     height: 5,
-    backgroundColor: colors.neutral[300],
     borderRadius: 3,
     alignSelf: 'center',
     marginTop: 8,
@@ -404,7 +413,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   closeText: {
-    color: colors.primary,
+    color: colors.primaryStrong,
     fontSize: 16,
   },
   modalList: {

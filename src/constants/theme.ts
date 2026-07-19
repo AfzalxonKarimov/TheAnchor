@@ -1,31 +1,57 @@
 /**
  * Design system tokens for TheAnchor app.
- * Premium, calm, minimal aesthetic inspired by Linear/Notion/Apple Health.
- * All colors work in both light and dark modes.
+ * Premium, calm, minimal aesthetic — Apple + Linear + Arc + Notion Mobile.
+ * Accent: Calm Teal. Everything is theme-adaptive (light + dark).
  */
 
 import { StyleSheet } from 'react-native';
 
-// Spacing scale - consistent across components
+// ── Spacing — single 8pt grid (8 / 16 / 24 / 32 / 48) ───────────────
+// Every gap, pad, and margin in the app resolves to one of these tokens so
+// rhythm stays consistent across screens. (4px kept only for micro-insets.)
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  xxl: 32,
+  xxxl: 40,
+  xxxxl: 48,
 } as const;
 
-// Typography scale
+// ── Corner radius ───────────────────────────────────────────────────────
+export const corner = {
+  sm: 16, // small surfaces, pills inside cards
+  md: 18, // buttons
+  lg: 24, // cards
+  xl: 24, // large hero surfaces (kept on the 24px card grid)
+  pill: 999,
+} as const;
+
+// ── Typography ──────────────────────────────────────────────────────────
 export const typography = {
+  display: {
+    fontSize: 44,
+    fontWeight: '700' as const,
+    lineHeight: 50,
+    letterSpacing: -1,
+  },
+  displayLarge: {
+    fontSize: 64,
+    fontWeight: '300' as const,
+    lineHeight: 70,
+    letterSpacing: -2,
+  },
   title: {
     fontSize: 28,
     fontWeight: '700' as const,
+    letterSpacing: -0.5,
   },
   heading: {
     fontSize: 20,
     fontWeight: '600' as const,
+    letterSpacing: -0.3,
   },
   body: {
     fontSize: 16,
@@ -39,26 +65,44 @@ export const typography = {
     fontSize: 14,
     fontWeight: '500' as const,
   },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.5,
+  },
 } as const;
 
-// Brand colors - muted, premium palette
+// ── Brand / accent colors — Calm Teal ───────────────────────────────────
 export const colors = {
-  // Primary action (used sparingly for floating button and key actions)
-  primary: '#007AFF',
-  primaryDark: '#0062CC',
+  // Primary action (teal) — used for key actions, rings, FAB, XP glow.
+  primary: '#2DD4BF',
+  primaryDark: '#14B8A6',
+  primarySoft: '#5EEAD4',
+  // Deep teal for teal *text* on light surfaces (primary #2DD4BF fails 4.5:1).
+  // Also a valid darker fill if a stronger teal is ever needed.
+  primaryStrong: '#0F766E',
+  // Legacy alias kept for any stragglers — equals primary (bright teal).
+  accent: '#2DD4BF',
+  accentGlow: '#14B8A6',
 
   // Semantic colors
   success: '#34C759',
-  warning: '#FF9500',
-  error: '#FF3B30',
+  warning: '#FFB020',
+  error: '#FF6B6B',
+  // Deeper variants for *text* on light surfaces (the base hues fail AA).
+  errorStrong: '#C0392B',
 
-  // Neutral palette - works for both themes
+  // Ink for text/icon siting ON teal/success fills and their tints.
+  // #06201D on #2DD4BF ≈ 11:1, on #34C759 ≈ 7.8:1 — passes AA everywhere.
+  onAccent: '#06201D',
+
+  // Neutral palette
   neutral: {
     50: '#FAFAFA',
     100: '#F2F2F2',
     200: '#E5E5E5',
     300: '#D1D1D1',
-    400: '#A3A3A3',
+    400: '#8A9694',
     500: '#6B6B6B',
     600: '#3C3C3C',
     700: '#1F1F1F',
@@ -66,45 +110,91 @@ export const colors = {
     900: '#000000',
   },
 
-  // Light theme
+  // Light theme — soft off-white, faint teal-tinted surfaces
   light: {
-    background: '#FFFFFF',
-    surface: '#F2F2F2',
-    text: '#000000',
-    textSecondary: '#6B6B6B',
-    textMuted: '#A3A3A3',
-    border: '#E5E5E5',
+    background: '#FAFBFB',
+    surface: '#FFFFFF',
+    surfaceAlt: '#F2F6F5',
+    text: '#0B0E0D',
+    textSecondary: '#4A5754',
+    // Deepened from #8A9694 (~3.1:1) to pass WCAG AA (≥4.5:1) on background.
+    textMuted: '#5C6B68',
+    border: '#E8EDEC',
+    hairline: 'rgba(11,14,13,0.06)',
   },
 
-  // Dark theme
+  // Dark theme — deep teal-tinted near-black (per design spec)
   dark: {
-    background: '#000000',
-    surface: '#121212',
-    text: '#FFFFFF',
-    textSecondary: '#A3A3A3',
-    textMuted: '#6B6B6B',
-    border: '#1F1F1F',
+    background: '#0B0E0D',
+    surface: '#141B18',
+    surfaceAlt: '#18211D',
+    text: '#F2F7F6',
+    textSecondary: '#A8B5B2',
+    // Lightened from #6E7C79 (~4.4:1) to pass AA on the dark background.
+    textMuted: '#8A9694',
+    border: '#222C2A',
+    hairline: 'rgba(255,255,255,0.06)',
   },
 } as const;
 
-// Navigation-specific tokens
+// ── Navigation-specific tokens ──────────────────────────────────────────
 export const navigationTokens = {
-  tabBarHeight: 80,
-  floatingButtonSize: 64,
-  iconSize: 24,
-  iconSizeActive: 28,
-  cornerRadius: 20,
+  tabBarHeight: 84,
+  floatingButtonSize: 56, // reduced 12% from 64 for visual balance
+  iconSize: 22,
+  iconSizeActive: 24,
+  cornerRadius: 24,
   borderWidth: 0.5,
 } as const;
 
-// Animation durations - subtle and smooth
+// ── Animation — subtle, springy, calm ───────────────────────────────────
 export const animation = {
   fast: 150,
-  medium: 250,
-  slow: 350,
+  medium: 280,
+  slow: 420,
+  spring: { tension: 120, friction: 14 } as const,
+  springSoft: { tension: 90, friction: 18 } as const,
+  easeOut: { duration: 420, useNativeDriver: true } as const,
 } as const;
 
-// Base styles for consistent theming
+// ── Layered shadows (soft depth, never heavy) ──────────────────────────
+export const shadow = {
+  soft: {
+    shadowColor: '#050807',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  elevate: {
+    shadowColor: '#050807',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  glow: {
+    shadowColor: '#2DD4BF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+} as const;
+
+// ── Glass surfaces (translucent + hairline) ─────────────────────────────
+export const glass = {
+  light: {
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  dark: {
+    backgroundColor: 'rgba(20,27,24,0.72)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+} as const;
+
+// ── Base reusable styles ────────────────────────────────────────────────
 export const baseStyles = StyleSheet.create({
   flexCenter: {
     alignItems: 'center',
@@ -114,12 +204,6 @@ export const baseStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  shadow: {
-    // Subtle elevation - no heavy shadows
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
+  shadow: shadow.soft,
+  shadowElevate: shadow.elevate,
 });

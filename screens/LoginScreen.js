@@ -8,9 +8,12 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../src/auth/AuthContext';
+import { useThemeColors } from '../src/theme/useThemeColors';
+import { spacing } from '../src/constants/theme';
 
 export default function LoginScreen({ navigation }) {
   const { session, signingIn, signInReady, signInWithGoogle } = useAuth();
+  const c = useThemeColors();
 
   // Navigation is reactive to session state: promptAsync resolves before the
   // Supabase token exchange completes, so we wait for the session to appear.
@@ -26,10 +29,10 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <View style={styles.contentContainer}>
-        <Text style={styles.title}>Welcome to TheAnchor</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: c.text }]}>Welcome to TheAnchor</Text>
+        <Text style={[styles.subtitle, { color: c.textMuted }]}>
           Sign in with Google to start building habits
         </Text>
 
@@ -65,7 +68,7 @@ export default function LoginScreen({ navigation }) {
             onPress={handleSkipLogin}
             activeOpacity={0.6}
           >
-            <Text style={styles.devButtonText}>Skip login (dev)</Text>
+            <Text style={[styles.devButtonText, { color: c.textMuted }]}>Skip login (dev)</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -74,10 +77,10 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   contentContainer: {
     flex: 1,
-    padding: 30,
+    padding: spacing.xl,
     paddingTop: 100,
     justifyContent: 'center',
   },
@@ -89,7 +92,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -111,8 +113,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   devButtonText: {
-    color: '#A3A3A3',
-    fontSize: 14,
     fontWeight: '500',
+    fontSize: 14,
   },
 });

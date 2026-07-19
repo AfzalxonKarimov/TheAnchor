@@ -8,9 +8,12 @@ import {
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../src/auth/AuthContext';
+import { useThemeColors } from '../src/theme/useThemeColors';
+import { spacing, colors } from '../src/constants/theme';
 
 export default function OnboardingScreen({ navigation }) {
   const { session, loading } = useAuth();
+  const c = useThemeColors();
 
   // Auto-redirect already-authenticated users to the app.
   useEffect(() => {
@@ -45,27 +48,29 @@ export default function OnboardingScreen({ navigation }) {
   // of the onboarding UI for already-signed-in users.
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: c.background }]}>
+        <ActivityIndicator size="large" color={c.accent} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.background }]}>
       <View style={styles.contentContainer}>
-        <Text style={styles.title}>TheAnchor</Text>
-        <Text style={styles.tagline}>Built for the days your motivation runs out — not just the days it's high.</Text>
+        <Text style={[styles.title, { color: c.text }]}>TheAnchor</Text>
+        <Text style={[styles.tagline, { color: c.textMuted }]}>
+          Built for the days your motivation runs out — not just the days it's high.
+        </Text>
 
         <View style={styles.featureList}>
           {features.map((feature, index) => (
-            <View key={index} style={styles.featureCard}>
-              <View style={styles.featureIconWrap}>
-                <FontAwesome5 name={feature.icon} size={24} color="#007AFF" />
+            <View key={index} style={[styles.featureCard, { backgroundColor: c.surfaceAlt, borderColor: c.hairline }]}>
+              <View style={[styles.featureIconWrap, { backgroundColor: `${c.accent}1F` }]}>
+                <FontAwesome5 name={feature.icon} size={24} color={c.accent} />
               </View>
               <View style={styles.featureTextContainer}>
-                <Text style={styles.featureTitle}>{feature.title}</Text>
-                <Text style={styles.featureDescription}>{feature.description}</Text>
+                <Text style={[styles.featureTitle, { color: c.text }]}>{feature.title}</Text>
+                <Text style={[styles.featureDescription, { color: c.textMuted }]}>{feature.description}</Text>
               </View>
             </View>
           ))}
@@ -74,10 +79,10 @@ export default function OnboardingScreen({ navigation }) {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={styles.getStartedButton}
+          style={[styles.getStartedButton, { backgroundColor: c.accent }]}
           onPress={handleGetStarted}
         >
-          <Text style={styles.buttonText}>Get Started</Text>
+          <Text style={[styles.buttonText, { color: c.onAccent }]}>Get Started</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -85,38 +90,36 @@ export default function OnboardingScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   loadingContainer: { alignItems: 'center', justifyContent: 'center' },
-  contentContainer: { flex: 1, padding: 30, paddingTop: 100 },
+  contentContainer: { flex: 1, padding: spacing.xl, paddingTop: 100 },
   title: { fontSize: 34, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-  tagline: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
+  tagline: { fontSize: 16, textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
   featureList: { gap: 20 },
   featureCard: {
     flexDirection: 'row',
-    backgroundColor: '#f8f8f8',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
+    borderWidth: 1,
   },
   featureIcon: { marginRight: 16 },
   featureIconWrap: {
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,122,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
   },
   featureTextContainer: { flex: 1 },
   featureTitle: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
-  featureDescription: { fontSize: 15, color: '#666' },
-  buttonContainer: { padding: 30 },
+  featureDescription: { fontSize: 15 },
+  buttonContainer: { padding: spacing.xl },
   getStartedButton: {
-    backgroundColor: '#007AFF',
     padding: 18,
     borderRadius: 14,
     alignItems: 'center',
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  buttonText: { fontWeight: 'bold', fontSize: 16 },
 });

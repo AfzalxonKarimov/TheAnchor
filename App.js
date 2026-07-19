@@ -12,19 +12,28 @@ import EditAnchorScreen from './screens/EditAnchorScreen';
 
 const Stack = createNativeStackNavigator();
 
-// Configure deep linking
+// Configure deep linking. The tab screens (journey/progress/profile/index) live
+// INSIDE the `Index` (TabNavigator) screen, so they must be nested under it —
+// declaring them at the top level (as before) made React Navigation report
+// linking "configured in multiple places". Only real stack screens are listed.
 const linking = {
   prefixes: ['theanchor://'],
   config: {
     screens: {
-      Login: 'login',
-      Index: 'home',
       Onboarding: 'onboarding',
-      Journey: 'journey',
-      Progress: 'progress',
-      Profile: 'profile',
-      Session: 'session',
+      Login: 'login',
+      Index: {
+        path: 'home',
+        screens: {
+          index: '',
+          journey: 'journey',
+          progress: 'progress',
+          profile: 'profile',
+        },
+      },
       AddHabit: 'add-habit',
+      EditAnchor: 'edit-anchor',
+      session: 'session',
     },
   },
 };
