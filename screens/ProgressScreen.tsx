@@ -48,7 +48,15 @@ export default function ProgressScreen() {
     try {
       const profile = await getProfile();
       if (profile) setXp(profile.total_xp || 0);
-      const data = await loadDashboardAnalytics({ weeks: 26, months: 6 });
+      // Consistency heatmap should span from when the user joined, not a
+      // fixed 6-month window. Fall back to ~26 weeks if no join date.
+      let weeks = 26;
+      const joined = profile?.created_at ? new Date(profile.created_at) : null;
+      if (joined && !Number.isNaN(joined.getTime())) {
+        const days = Math.max(0, Math.floor((Date.now() - joined.getTime()) / 86400000));
+        weeks = Math.max(4, Math.ceil(days / 7));
+      }
+      const data = await loadDashboardAnalytics({ weeks, months: 6 });
       setDash(data as Dash);
     } catch (e) {
       console.warn('Progress load failed', e);
@@ -69,8 +77,8 @@ export default function ProgressScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Reveal>
           <View style={styles.header}>
-            <Text style={[typography.display, { color: c.text, fontSize: 34 }]}>Progress</Text>
-            <Text style={[typography.small, { color: c.textMuted, marginTop: 2 }]}>
+            <Text style={[typography.displayXs, { color: c.text }]}>Progress</Text>
+            <Text style={[typography.small, { color: c.textMuted, marginTop: spacing.xs }]}>
               {rank} · Level {level}
             </Text>
           </View>
@@ -92,9 +100,9 @@ export default function ProgressScreen() {
             <Reveal delay={60}>
               <Surface radius="xl" style={[styles.card, styles.recoveryHero]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ProgressRing progress={recovery / 100} size={120} strokeWidth={12} glow>
+                  <ProgressRing progress={recovery / 100} size={108} strokeWidth={10} glow>
                     <View style={{ alignItems: 'center' }}>
-                      <Text style={[typography.display, { color: c.text, fontSize: 40 }]}>{recovery}</Text>
+                      <Text style={[typography.displayMd, { color: c.text }]}>{recovery}</Text>
                       <Text style={[typography.caption, { color: c.textMuted }]}>/100</Text>
                     </View>
                   </ProgressRing>
@@ -127,7 +135,7 @@ export default function ProgressScreen() {
                 <SectionHeader title="Activity" subtitle="Sessions per week" />
                 <AreaChart
                   data={dash.weekly}
-                  height={210}
+                  height={248}
                   formatValue={(v) => `${v} sessions`}
                 />
                 <Text style={[typography.caption, { color: c.textMuted, textAlign: 'center', marginTop: spacing.md }]}>
@@ -200,8 +208,8 @@ function MonthStat({ icon, label, value, tint }: { icon: string; label: string; 
   const c = useThemeColors();
   return (
     <View style={styles.monthStat}>
-      <IconBadge name={icon} color={tint} box={32} size={14} />
-      <Text style={[typography.heading, { color: c.text, fontSize: 22, marginTop: spacing.sm }]}>{value}</Text>
+      <IconBadge name={icon} color={tint} box={36} size={16} />
+      <Text style={[typography.headingLg, { color: c.text, marginTop: spacing.sm }]}>{value}</Text>
       <Text style={[typography.caption, { color: c.textMuted }]}>{label}</Text>
     </View>
   );
@@ -211,9 +219,9 @@ function Record({ icon, label, value }: { icon: string; label: string; value: st
   const c = useThemeColors();
   return (
     <View style={[styles.recItem, { backgroundColor: c.surfaceAlt, borderColor: c.hairline }]}>
-      <IconBadge name={icon} color={colors.primary} box={30} size={13} />
-      <Text style={[typography.heading, { color: c.text, fontSize: 18, marginTop: spacing.sm }]}>{value}</Text>
-      <Text style={[typography.caption, { color: c.textMuted, marginTop: 2 }]}>{label}</Text>
+      <IconBadge name={icon} color={colors.primary} box={36} size={16} />
+      <Text style={[typography.headingLg, { color: c.text, marginTop: spacing.sm }]}>{value}</Text>
+      <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>{label}</Text>
     </View>
   );
 }
@@ -226,61 +234,56 @@ function Record({ icon, label, value }: { icon: string; label: string; value: st
 function LevelTimeline({ level }: { level: number }) {
   const c = useThemeColors();
   return (
-    <View style={{ position: 'relative' }}>
-      <View
-        style={{
-          position: 'absolute',
-          left: 56,
-          right: 56,
-          top: 21,
-          height: 3,
-          borderRadius: 2,
-          backgroundColor: c.hairline,
-        }}
-      />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeline}>
-        {LEVEL_THRESHOLDS.map((thr, i) => {
-          const lv = i + 1;
-          const isCurrent = lv === level;
-          const isPast = lv < level;
-          const isFuture = lv > level;
-          return (
-            <View key={lv} style={[styles.tlNode, { opacity: isFuture ? 0.5 : 1 }]}>
-              {isCurrent && (
-                <View style={[styles.tlYou, { backgroundColor: `${colors.primary}1F` }]}>
-                  <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700' }]}>YOU</Text>
-                </View>
-              )}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timeline}>
+      {LEVEL_THRESHOLDS.map((thr, i) => {
+        const lv = i + 1;
+        const isCurrent = lv === level;
+        const isPast = lv < level;
+        const isFuture = lv > level;
+        const isLast = i === LEVEL_THRESHOLDS.length - 1;
+        return (
+          <View key={lv} style={[styles.tlNode, { opacity: isFuture ? 0.5 : 1 }]}>
+            {/* Connecting rail — drawn per node so it scrolls with the content
+                (a single viewport-width line would detach from later nodes). */}
+            {!isLast && (
               <View
-                style={[
-                  styles.tlDot,
-                  {
-                    backgroundColor: isCurrent ? colors.primary : isPast ? `${colors.primary}24` : c.surfaceAlt,
-                    borderColor: isCurrent ? colors.primary : isPast ? `${colors.primary}55` : c.hairline,
-                    ...(isCurrent ? shadow.glow : {}),
-                  },
-                ]}
-              >
-                {isCurrent && <View style={styles.tlCore} />}
+                style={[styles.tlRail, { backgroundColor: lv <= level ? c.accentSoft : c.hairline }]}
+              />
+            )}
+            {isCurrent && (
+              <View style={[styles.tlYou, { backgroundColor: `${colors.primary}1F` }]}>
+                <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700' }]}>YOU</Text>
               </View>
-              <Text
-                style={[
-                  typography.caption,
-                  {
-                    color: isCurrent ? colors.primary : isFuture ? c.textMuted : c.text,
-                    fontWeight: isCurrent ? '700' : '500',
-                    marginTop: spacing.sm,
-                  },
-                ]}
-              >
-                Lv {lv}
-              </Text>
-              <Text style={[typography.caption, { color: c.textMuted, fontSize: 10 }]}>{thr} XP</Text>
+            )}
+            <View
+              style={[
+                styles.tlDot,
+                {
+                  backgroundColor: isCurrent ? colors.primary : isPast ? `${colors.primary}24` : c.surfaceAlt,
+                  borderColor: isCurrent ? colors.primary : isPast ? `${colors.primary}55` : c.hairline,
+                  ...(isCurrent ? shadow.glow : {}),
+                },
+              ]}
+            >
+              {isCurrent && <View style={styles.tlCore} />}
             </View>
-          );
-        })}
-      </ScrollView>
-    </View>
+            <Text
+              style={[
+                typography.caption,
+                {
+                  color: isCurrent ? colors.primary : isFuture ? c.textMuted : c.text,
+                  fontWeight: isCurrent ? '700' : '500',
+                  marginTop: spacing.sm,
+                },
+              ]}
+            >
+              Lv {lv}
+            </Text>
+            <Text style={[typography.micro, { color: c.textMuted }]}>{thr} XP</Text>
+          </View>
+        );
+      })}
+    </ScrollView>
   );
 }
 
@@ -296,11 +299,12 @@ const styles = StyleSheet.create({
   recoveryRow: { flexDirection: 'row', alignItems: 'center' },
   achGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.lg },
   recGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  recItem: { width: '47%', borderRadius: corner.md, padding: spacing.lg, borderWidth: 1 },
+  recItem: { width: '47%', borderRadius: corner.lg, padding: spacing.lg, borderWidth: 1, ...shadow.soft },
   recoveryHero: { paddingVertical: spacing.xl },
   timeline: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg },
   tlNode: { alignItems: 'center', width: 58, position: 'relative' },
-  tlDot: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  tlRail: { position: 'absolute', top: 22, left: 29, width: 58, height: 3, borderRadius: 2, zIndex: 0 },
+  tlDot: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
   tlCore: { width: 13, height: 13, borderRadius: 7, backgroundColor: '#fff' },
   tlYou: { position: 'absolute', top: -10, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: corner.pill },
 });

@@ -21,7 +21,6 @@ export function SectionHeader({ title, subtitle, action, style }: SectionHeaderP
           alignItems: 'flex-end',
           justifyContent: 'space-between',
           marginBottom: spacing.md,
-          paddingHorizontal: spacing.xs,
         },
         style,
       ]}
@@ -29,7 +28,7 @@ export function SectionHeader({ title, subtitle, action, style }: SectionHeaderP
       <View>
         <Text style={[typography.heading, { color: c.text }]}>{title}</Text>
         {subtitle && (
-          <Text style={[typography.small, { color: c.textMuted, marginTop: 2 }]}>
+          <Text style={[typography.small, { color: c.textMuted, marginTop: spacing.xs }]}>
             {subtitle}
           </Text>
         )}

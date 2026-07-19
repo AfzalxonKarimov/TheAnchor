@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { AchievementGlyph } from '../src/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { spacing, typography, colors, corner } from '../src/constants/theme';
@@ -189,7 +190,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
               <View style={styles.readout}>
                 <Text style={[styles.timerText, { color: c.text }]}>{formatTime(seconds)}</Text>
                 <Text style={[typography.caption, { color: c.textMuted, marginTop: 4 }]}>goal {formatTime(goalSeconds)}</Text>
-                <Text style={[typography.small, { color: minimumMet ? colors.success : c.textMuted, marginTop: 6, fontWeight: '700' }]}>
+                <Text style={[typography.small, { color: minimumMet ? colors.success : c.textMuted, marginTop: spacing.xs, fontWeight: '700' }]}>
                   {minimumMet ? 'Minimum met' : `${Math.ceil((goalSeconds - seconds) / 60)} min to go`}
                 </Text>
               </View>
@@ -228,12 +229,12 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', opacity: celebrateOpacity }]}>
           <Animated.View style={[styles.celebrateCard, { backgroundColor: c.surface, transform: [{ scale: celebrateScale }] }]}>
             <View style={[styles.celebrateIcon, { backgroundColor: `${colors.success}1F` }]}>
-              <FontAwesome5 name="check" size={32} color={colors.success} />
+              <AchievementGlyph name="check" size={32} color={colors.success} />
             </View>
             <Text style={[typography.heading, { color: c.text, marginTop: spacing.md }]}>Session complete</Text>
             <View style={[styles.xpPill, { backgroundColor: `${colors.primary}1F` }]}>
               <FontAwesome5 name="bolt" size={13} color={colors.primary} />
-              <Text style={[typography.small, { color: colors.primaryStrong, fontWeight: '700', marginLeft: 6 }]}>+{celebration.xp} XP</Text>
+              <Text style={[typography.small, { color: colors.primaryStrong, fontWeight: '700', marginLeft: spacing.sm }]}>+{celebration.xp} XP</Text>
             </View>
             <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.md }]}>
               Day {celebration.streak} streak · momentum restored
@@ -270,19 +271,19 @@ const styles = StyleSheet.create({
   closeBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   timerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   readout: { alignItems: 'center', justifyContent: 'center' },
-  timerText: { fontSize: 64, fontWeight: '300', lineHeight: 70, letterSpacing: -2 },
+  timerText: { ...typography.displayLarge },
   controls: { alignItems: 'center', marginBottom: spacing.xxxl },
   primaryButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xxl, paddingVertical: spacing.lg, borderRadius: corner.pill, gap: spacing.md },
-  primaryButtonText: { color: colors.onAccent, fontSize: 18, fontWeight: '700' },
+  primaryButtonText: { ...typography.headingMd, color: colors.onAccent, fontWeight: '700' },
   activeControls: { flexDirection: 'row', gap: spacing.xl, alignItems: 'center' },
   controlButton: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
   finishButton: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl, borderRadius: corner.pill },
   disabled: { opacity: 0.5 },
-  finishButtonText: { color: colors.onAccent, fontSize: 16, fontWeight: '700' },
+  finishButtonText: { ...typography.body, color: colors.onAccent, fontWeight: '700' },
   particles: { ...StyleSheet.absoluteFillObject },
   celebrateCard: { width: '85%', maxWidth: 340, borderRadius: corner.xl, padding: spacing.xxl, alignItems: 'center' },
   celebrateIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   xpPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, borderRadius: corner.pill, marginTop: spacing.lg },
   continueBtn: { width: '100%', paddingVertical: spacing.lg, borderRadius: corner.md, marginTop: spacing.xl },
-  continueText: { color: colors.onAccent, fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  continueText: { ...typography.body, color: colors.onAccent, fontWeight: '700', textAlign: 'center' },
 });

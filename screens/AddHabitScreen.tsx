@@ -13,10 +13,11 @@ import {
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { AchievementGlyph } from '../src/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { createAnchor, updateAnchor, getAnchors } from '../src/supabase/anchors';
-import { spacing, typography, colors } from '../src/constants/theme';
+import { spacing, typography, colors, corner } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 
 // Predefined anchor templates for users to pick from
@@ -214,7 +215,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
         </View>
         {alreadyAdded && (
           <View style={styles.addedBadge}>
-            <FontAwesome5 name="check" size={11} color={colors.success} />
+            <AchievementGlyph name="check" size={11} color={colors.success} />
             <Text style={styles.addedBadgeText}>Added</Text>
           </View>
         )}
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.body,
     color: colors.neutral[500],
     textAlign: 'center',
     marginBottom: spacing.xl,
@@ -369,7 +370,7 @@ const styles = StyleSheet.create({
   templateCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: corner.sm,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 2,
@@ -396,11 +397,11 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: corner.xs,
     backgroundColor: `${colors.success}20`,
   },
   addedBadgeText: {
-    fontSize: 12,
+    ...typography.caption,
     fontWeight: '600',
     color: colors.success,
   },
@@ -408,12 +409,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   templateTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    ...typography.headingSm,
     marginBottom: 4,
   },
   templateDetails: {
-    fontSize: 14,
+    ...typography.small,
     color: colors.neutral[500],
   },
   customButton: {
@@ -422,12 +422,12 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: corner.xs,
     alignItems: 'center',
   },
   customButtonText: {
+    ...typography.body,
     fontWeight: '600',
-    fontSize: 16,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -440,38 +440,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   modalContent: {
-    borderRadius: 20,
+    borderRadius: corner.control,
     padding: 24,
     width: '100%',
     maxWidth: 400,
   },
   modalTitle: {
-    fontSize: 20,
+    ...typography.heading,
     fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
   },
   modalInput: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: corner.xs,
     padding: 14,
-    fontSize: 16,
+    ...typography.body,
     marginBottom: 12,
   },
   customRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   customInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: corner.xs,
     padding: 14,
-    fontSize: 16,
+    ...typography.body,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modalButtonText: {
-    fontSize: 16,
+    ...typography.body,
   },
   modalButtonTextPrimary: {
     color: colors.onAccent,

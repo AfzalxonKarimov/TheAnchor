@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ViewStyle, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '../../theme/useThemeColors';
-import { typography, colors, spacing, corner } from '../../constants/theme';
+import { typography, colors, spacing, corner, shadow } from '../../constants/theme';
 import { IconBadge } from './IconBadge';
 
 interface StatTileProps {
@@ -24,20 +24,20 @@ export function StatTile({ label, value, icon, tint = colors.primary, onPress, s
         {
           borderRadius: corner.lg,
           padding: pad,
+          minHeight: compact ? 104 : 112,
           backgroundColor: c.surface,
           borderWidth: 1,
           borderColor: c.hairline,
+          ...shadow.soft,
         },
         style,
       ]}
     >
       {icon && (
-        <IconBadge name={icon} color={tint} box={compact ? 34 : 40} size={compact ? 15 : 18} style={{ marginBottom: spacing.md }} />
+        <IconBadge name={icon} color={tint} box={compact ? 36 : 40} size={compact ? 16 : 18} style={{ marginBottom: spacing.md }} />
       )}
-      <Text style={[typography.display, { fontSize: compact ? 26 : 30, color: c.text, lineHeight: compact ? 30 : 34 }]}>
-        {value}
-      </Text>
-      <Text style={[typography.caption, { color: c.textMuted, marginTop: 2, fontWeight: '600', letterSpacing: 0.4 }]}>
+      <Text style={[typography.displayXxs, { color: c.text }]}>{value}</Text>
+      <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs, fontWeight: '600', letterSpacing: 0.4 }]}>
         {label}
       </Text>
     </View>

@@ -473,11 +473,59 @@ performed and the highest-priority, systemic issues fixed:
   on first appearance (this also fixed a live-timer bug where the session ring reset to 0 every
   tick). `npx tsc --noEmit` passes clean.
 
-### Known follow-ups (not yet addressed)
-Icon-language unification (FontAwesome5 vs the custom monoline `AchievementGlyph` set, including
-duplicate `anchor`/`check`), the enforced typography scale (tokens overridden inline throughout),
-radius tokenization (hardcoded 12/14/16/20 still in Add/Edit forms), and a few sub-44pt tap
-targets (filter chips, Profile "Manage") remain open.
+### 2026-07-19 — Follow-ups from the HIG audit (now resolved)
+The four open items listed below are now addressed:
+
+- **Icon-language unification** — `anchor`/`check` now render from the monoline
+  `AchievementGlyph` set everywhere (Profile avatar, Home rank chip, Session celebrate card,
+  EditAnchor color-swatch selection, AddHabit "Added" badge). FontAwesome5 remains only for
+  generic UI icons (tabs, play/pause, chevrons, etc.).
+- **Typography scale** — added intermediate `typography` tokens (`micro`, `bodyMd`,
+  `headingSm/Md/Lg`, `displayXxs/Xs/Sm/Md/Lg`) and replaced every inline `fontSize` literal
+  across screens + the UI kit with token references (no visual change — same numbers).
+- **Radius tokenization** — `corner` extended with `xs:12`, `field:14`, `control:20`; the
+  Add/Edit form radii no longer hardcode 12/14/16/20.
+- **Tap targets** — `minHeight:44` added to Profile "Manage" and the Journey filter chips; the
+  EditAnchor color swatch was bumped 40→44px. `npx tsc --noEmit` passes clean.
+
+### Known follow-ups (resolved)
+Icon-language unification, the typography scale, radius tokenization, and the sub-44pt tap
+targets listed in the HIG audit are all addressed (see the 2026-07-19 entry above).
+
+### 2026-07-19 — Pixel-perfect polish pass (Apple first-party consistency)
+A production-quality polish pass (no redesign, no new features — consistency only) across every
+screen. `npx tsc --noEmit` passes clean after all changes.
+
+- **Spacing snapped to a strict 8pt scale** (`src/constants/theme.ts`) — the app now uses ONLY
+  `8 / 16 / 24 / 32 / 48` (plus `4` as a micro-inset). The two off-grid tokens from the earlier
+  HIG entry were resolved onto the grid: `lg` 20→**24** and `xxxl` 40→**48** (`xl` also = 24 so
+  cards and section gaps share one rhythm; `md` = 16 is the tight intra-card gap). Because screens
+  reference these tokens, this re-rhythmed every screen at once. Swept remaining stray literals
+  (`marginTop:2`, `marginLeft:6`, `paddingVertical:5`, `spacing.sm + 2`, `padding:20`) to tokens
+  across Home, Journey, Progress, Profile, Session, AddHabit, and `LevelUpModal`.
+- **Alignment** — `SectionHeader` had a 4px horizontal inset that pushed every section title off
+  the card/screen edge; removed so titles line up exactly with the cards beneath them.
+- **Card consistency** — `StatTile` given a shared `minHeight` (112 / 96 compact) so tiles in a
+  row are always equal height, plus the standard `shadow.soft`. Progress `recItem` cards moved
+  `corner.md`(18)→`corner.lg`(24) with `shadow.soft`; anchor-selection modal rows aligned to the
+  24px radius grid.
+- **Typography** — `StatTile` inline `fontSize:26/30` replaced with the `displayXxs` token;
+  Progress `MonthStat`/`Record` numbers unified to `headingLg` (were mismatched 22 vs 18).
+- **Icon sizing unified** — same-importance rows now share one badge size: Journey anchor badge
+  54→44 (matches Home), Progress stat badges 30/32→36, Profile setting rows 34→36; glyph sizes
+  tracked to match.
+- **Depth / shadows** — four components (`MomentumHero`, `Heatmap`, `AreaChart`, `Segmented`) each
+  carried their own local `shadowSoft()` helper with differing values; all replaced with the
+  single `shadow.soft` token and the dead helpers deleted.
+- **Per screen** — Home: Momentum chart 132→160, hero-stat inner padding tightened. Journey:
+  equal chip/sort-button heights (min 44), start button 44→48 to align with the ring row.
+  Progress: activity chart 210→224 for focal emphasis, heatmap cell 13→14. Profile: more
+  breathing room between sections (identity + card `marginBottom` → 32).
+- **Bottom nav + FAB** — tab bar shadow softened (was the heavy shared `baseStyles.shadow`, now a
+  quiet 0.06-opacity layer); FAB elevation 6→4 and shadow opacity trimmed.
+- **Note:** `src/components/navigation/BottomTabBar.tsx` is dead code — it is exported but the app
+  renders `CustomTabBar` inside `src/navigation/TabNavigator.tsx`. The live tab bar was polished;
+  the unused file is a candidate for deletion in a separate cleanup.
 
 ## Author Context
 - Builder: CS50 student, beginner programmer, building with heavy AI assistance (learning while shipping)

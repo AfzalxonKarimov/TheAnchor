@@ -38,7 +38,8 @@ export function QuoteCard({ date, style }: QuoteCardProps) {
       style={[
         {
           borderRadius: corner.lg,
-          padding: spacing.xl,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.xl,
           backgroundColor: c.surfaceAlt,
           borderWidth: 1,
           borderColor: c.hairline,
@@ -46,8 +47,8 @@ export function QuoteCard({ date, style }: QuoteCardProps) {
         style,
       ]}
     >
-      <FontAwesome5 name="quote-left" size={18} color={colors.primary} style={{ marginBottom: spacing.md, opacity: 0.7 }} />
-      <Text style={[typography.body, { color: c.text, fontSize: 17, lineHeight: 26, fontWeight: '500' }]}>
+      <FontAwesome5 name="quote-left" size={18} color={colors.primary} style={{ marginBottom: spacing.sm, opacity: 0.7 }} />
+      <Text style={[typography.headingSm, { color: c.text, lineHeight: 26, fontWeight: '500' }]}>
         {item.text}
       </Text>
       <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.md, fontWeight: '600', letterSpacing: 0.6 }]}>

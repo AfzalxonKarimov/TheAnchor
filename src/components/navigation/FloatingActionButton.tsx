@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, navigationTokens, spacing } from '../../constants/theme';
+import { colors, navigationTokens, spacing, typography } from '../../constants/theme';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface FloatingActionButtonProps {
@@ -135,10 +135,10 @@ export function FloatingActionButton({ onPress, disabled, label, done }: Floatin
           flexDirection: 'row',
           transform: [{ scale: scaleAnim }],
           // Elevation above tab bar — present but quiet
-          elevation: 6,
+          elevation: 4,
           shadowColor: '#050807',
           shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: done ? 0.1 : 0.12,
+          shadowOpacity: done ? 0.08 : 0.1,
           shadowRadius: 10,
           opacity: disabled ? 0.5 : 1,
           // Larger hit area for accessibility
@@ -182,7 +182,7 @@ export function FloatingActionButton({ onPress, disabled, label, done }: Floatin
           style={showLabel ? { marginRight: spacing.sm } : { marginLeft: 2 }} // Visual centering adjustment
         />
         {showLabel ? (
-          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '600' }}>
+          <Text style={{ ...typography.bodyMd, color: '#FFFFFF', fontWeight: '600' }}>
             {done ? 'All done' : label}
           </Text>
         ) : null}

@@ -12,10 +12,11 @@ import {
 } from 'react-native';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { AchievementGlyph } from '../src/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { updateAnchor, deleteAnchor } from '../src/supabase/anchors';
-import { spacing, typography, colors, baseStyles } from '../src/constants/theme';
+import { spacing, typography, colors, corner, baseStyles } from '../src/constants/theme';
 import { Anchor } from '../src/navigation/types';
 
 // Icon + color choices for an anchor's identity. FA5 only (per design system),
@@ -226,7 +227,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
                   { backgroundColor: opt, borderColor: selected ? text : 'transparent' },
                 ]}
               >
-                {selected && <FontAwesome5 name="check" size={12} color="#fff" />}
+                {selected && <AchievementGlyph name="check" size={12} color="#fff" />}
               </TouchableOpacity>
             );
           })}
@@ -330,11 +331,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   previewTitle: {
-    fontSize: 20,
+    ...typography.heading,
     fontWeight: '700',
   },
   label: {
-    fontSize: 12,
+    ...typography.caption,
     fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
@@ -342,9 +343,9 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: corner.xs,
     padding: 14,
-    fontSize: 16,
+    ...typography.body,
   },
   pickerGrid: {
     flexDirection: 'row',
@@ -354,7 +355,7 @@ const styles = StyleSheet.create({
   iconOption: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: corner.field,
     borderWidth: 2,
     ...baseStyles.flexCenter,
   },
@@ -364,9 +365,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: corner.control,
     borderWidth: 2,
     ...baseStyles.flexCenter,
   },
@@ -378,15 +379,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   saveButton: {
-    borderRadius: 14,
+    borderRadius: corner.field,
     padding: 16,
     alignItems: 'center',
     marginTop: spacing.xxl,
   },
   saveButtonText: {
+    ...typography.body,
     color: colors.onAccent,
     fontWeight: '700',
-    fontSize: 16,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -402,8 +403,8 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   deleteButtonText: {
+    ...typography.body,
     color: colors.errorStrong,
     fontWeight: '600',
-    fontSize: 16,
   },
 });

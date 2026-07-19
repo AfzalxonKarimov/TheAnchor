@@ -3,7 +3,7 @@ import { View, Text, ViewStyle } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Path as SvgPath } from 'react-native-svg';
 import { useThemeColors } from '../../theme/useThemeColors';
-import { typography, colors, spacing, corner } from '../../constants/theme';
+import { typography, colors, spacing, corner, shadow } from '../../constants/theme';
 import { smoothLine } from '../../lib/smooth';
 import { AreaChart } from './AreaChart';
 
@@ -85,11 +85,12 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
       style={[
         {
           borderRadius: corner.xl,
-          padding: spacing.xl,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.xl,
           backgroundColor: c.surface,
           borderWidth: 1,
           borderColor: c.hairline,
-          ...shadowSoft(),
+          ...shadow.soft,
           overflow: 'hidden',
         },
         style,
@@ -108,19 +109,19 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
         </Svg>
       ) : null}
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View>
           <Text style={[typography.eyebrow, { color: c.textMuted }]}>MOMENTUM</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
-            <Text style={[typography.display, { color: c.text, fontSize: 52 }]}>{display}</Text>
-            <Text style={[typography.heading, { color: c.textMuted, marginLeft: 4 }]}>/100</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: spacing.xs }}>
+            <Text style={[typography.displayLg, { color: c.text }]}>{display}</Text>
+            <Text style={[typography.heading, { color: c.textMuted, marginLeft: spacing.xs }]}>/100</Text>
           </View>
         </View>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
+            gap: spacing.xs,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.xs,
             borderRadius: corner.pill,
@@ -135,17 +136,17 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
       </View>
 
       {/* Full-width trend chart */}
-      <View style={{ marginTop: spacing.lg }}>
-        <AreaChart data={trend} height={132} formatValue={(v) => `${v} sessions`} />
+      <View style={{ marginTop: spacing.md }}>
+        <AreaChart data={trend} height={160} formatValue={(v) => `${v} sessions`} />
       </View>
 
       {/* Delta + encouraging line */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }}>
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 6,
+            gap: spacing.xs,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.xs,
             borderRadius: corner.pill,
@@ -160,18 +161,8 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
       </View>
 
       {subLine && (
-        <Text style={[typography.small, { color: c.textMuted, marginTop: spacing.md, lineHeight: 20 }]}>{subLine}</Text>
+        <Text style={[typography.small, { color: c.textMuted, marginTop: spacing.sm, lineHeight: 20 }]}>{subLine}</Text>
       )}
     </View>
   );
-}
-
-function shadowSoft() {
-  return {
-    shadowColor: '#050807',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 4,
-  };
 }

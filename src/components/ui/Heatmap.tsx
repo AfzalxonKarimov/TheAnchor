@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ViewStyle, ScrollView, TouchableWithoutFeedback } from 'react-native';
 import { useThemeColors } from '../../theme/useThemeColors';
-import { typography, spacing } from '../../constants/theme';
+import { typography, spacing, shadow } from '../../constants/theme';
 
 interface HeatmapProps {
   /** weeks[col][row], col = oldest -> newest, row = 0 (top) .. 6. */
@@ -13,8 +13,8 @@ interface HeatmapProps {
   style?: ViewStyle;
 }
 
-const CELL = 13;
-const GAP = 4;
+const CELL = 16;
+const GAP = 5;
 
 /** GitHub-style consistency heatmap with teal intensity scale + press tooltip. */
 export function Heatmap({ weeks, dates, monthLabels = [], style }: HeatmapProps) {
@@ -41,7 +41,7 @@ export function Heatmap({ weeks, dates, monthLabels = [], style }: HeatmapProps)
               const m = monthLabels.find((x) => x.col === col);
               return (
                 <View key={col} style={{ width: colW, paddingLeft: 2 }}>
-                  {m ? <Text style={[typography.caption, { color: c.textMuted, fontSize: 10 }]}>{m.label}</Text> : null}
+                  {m ? <Text style={[typography.micro, { color: c.textMuted }]}>{m.label}</Text> : null}
                 </View>
               );
             })}
@@ -84,7 +84,7 @@ export function Heatmap({ weeks, dates, monthLabels = [], style }: HeatmapProps)
                 borderRadius: 10,
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.xs,
-                ...shadowSoft(),
+                ...shadow.soft,
               }}
             >
               <Text style={[typography.small, { color: c.text, fontWeight: '700' }]}>
@@ -108,14 +108,4 @@ export function Heatmap({ weeks, dates, monthLabels = [], style }: HeatmapProps)
       </View>
     </View>
   );
-}
-
-function shadowSoft() {
-  return {
-    shadowColor: '#0B1413',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  };
 }

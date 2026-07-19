@@ -54,14 +54,14 @@ export default function LevelUpModal({ visible, level, rank, xpAwarded, rankChan
           </View>
 
           <Text style={[typography.eyebrow, { color: colors.primaryStrong }]}>LEVEL UP</Text>
-          <Text style={[typography.display, { color: c.text, fontSize: 34, marginTop: spacing.xs }]}>Level {level}</Text>
+          <Text style={[typography.displayXs, { color: c.text, marginTop: spacing.xs }]}>Level {level}</Text>
           <Text style={[typography.body, { color: c.textSecondary, marginTop: spacing.xs }]}>
             {rankChanged ? `New rank · ${rank}` : `Rank · ${rank}`}
           </Text>
 
           <View style={[styles.xpPill, { backgroundColor: `${colors.success}1F` }]}>
             <FontAwesome5 name="bolt" size={13} color={colors.success} />
-            <Text style={[typography.small, { color: colors.onAccent, fontWeight: '700', marginLeft: 6 }]}>+{xpAwarded} XP</Text>
+            <Text style={[typography.small, { color: colors.onAccent, fontWeight: '700', marginLeft: spacing.sm }]}>+{xpAwarded} XP</Text>
           </View>
 
           <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={onContinue} activeOpacity={0.85}>
@@ -111,5 +111,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.xxl,
   },
-  buttonText: { color: colors.onAccent, fontSize: 16, fontWeight: '700' },
+  buttonText: { ...typography.body, color: colors.onAccent, fontWeight: '700' },
 });

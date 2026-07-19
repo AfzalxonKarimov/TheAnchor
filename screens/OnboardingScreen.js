@@ -9,7 +9,7 @@ import {
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../src/auth/AuthContext';
 import { useThemeColors } from '../src/theme/useThemeColors';
-import { spacing, colors } from '../src/constants/theme';
+import { spacing, colors, typography } from '../src/constants/theme';
 
 export default function OnboardingScreen({ navigation }) {
   const { session, loading } = useAuth();
@@ -93,8 +93,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loadingContainer: { alignItems: 'center', justifyContent: 'center' },
   contentContainer: { flex: 1, padding: spacing.xl, paddingTop: 100 },
-  title: { fontSize: 34, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-  tagline: { fontSize: 16, textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
+  title: { ...typography.displayXs, textAlign: 'center', marginBottom: 10 },
+  tagline: { ...typography.body, textAlign: 'center', marginBottom: 40, fontStyle: 'italic' },
   featureList: { gap: 20 },
   featureCard: {
     flexDirection: 'row',
@@ -113,13 +113,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   featureTextContainer: { flex: 1 },
-  featureTitle: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
-  featureDescription: { fontSize: 15 },
+  featureTitle: { ...typography.headingSm, marginBottom: 4 },
+  featureDescription: { ...typography.bodyMd },
   buttonContainer: { padding: spacing.xl },
   getStartedButton: {
     padding: 18,
     borderRadius: 14,
     alignItems: 'center',
   },
-  buttonText: { fontWeight: 'bold', fontSize: 16 },
+  buttonText: { ...typography.body, fontWeight: 'bold' },
 });

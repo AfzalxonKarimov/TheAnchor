@@ -69,7 +69,13 @@ export default function HomeScreen() {
       if (profile) {
         setXp(profile.total_xp || 0);
         setMomentum(profile.momentum || 50);
-        setDisplayName(profile.username ? profile.username.replace(/^user_/, '') : 'there');
+        // New profiles get an auto-generated `user_<id>` handle (see migration
+        // 0002 + profiles.js/sessions.js). That's an id, not a name — treat it
+        // as "no name set" and fall back to a friendly greeting instead of
+        // rendering the id fragment after "Good afternoon".
+        const rawName = profile.username || '';
+        const isAutoHandle = /^user_/i.test(rawName);
+        setDisplayName(!isAutoHandle && rawName ? rawName : 'there');
       }
       const snap = await getMomentumSnapshot();
       if (snap) setMomentumDelta(snap.delta);
@@ -166,13 +172,13 @@ export default function HomeScreen() {
           <View style={styles.header}>
             <View>
               <Text style={[typography.small, { color: c.textMuted }]}>{getGreeting()}</Text>
-              <Text style={[typography.display, { color: c.text, fontSize: 36, marginTop: 2 }]}>
+              <Text style={[typography.displaySm, { color: c.text, marginTop: spacing.xs }]}>
                 {displayName}
               </Text>
             </View>
             <View style={[styles.rankChip, { backgroundColor: `${colors.primary}1F` }]}>
-              <FontAwesome5 name="anchor" size={12} color={colors.primary} />
-              <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700', marginLeft: 6 }]}>
+              <AchievementGlyph name="anchor" size={12} color={colors.primary} />
+              <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700', marginLeft: spacing.sm }]}>
                 {rank}
               </Text>
             </View>
@@ -216,7 +222,7 @@ export default function HomeScreen() {
             <View style={styles.heroStat}>
               <Text style={[typography.eyebrow, { color: c.textMuted }]}>XP</Text>
               <Text style={[typography.title, { color: c.text, marginTop: spacing.xs }]}>{xp}</Text>
-              <View style={{ marginTop: spacing.xs }}>
+              <View style={{ marginTop: spacing.sm }}>
                 <XPBar progress={getLevelProgress(xp)} height={6} />
               </View>
             </View>
@@ -232,12 +238,12 @@ export default function HomeScreen() {
         {(missedYesterday || (anchorsDueToday.length > 0 && streak > 0)) && (
           <Reveal delay={200}>
             <Surface tint={missedYesterday ? `${colors.warning}12` : c.surfaceAlt} radius="lg" style={styles.recovery}>
-              <IconBadge name={missedYesterday ? 'seedling' : 'fire'} color={missedYesterday ? colors.warning : colors.primary} box={36} size={15} />
+              <IconBadge name={missedYesterday ? 'seedling' : 'fire'} color={missedYesterday ? colors.warning : colors.primary} box={36} size={16} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={[typography.small, { color: c.text, fontWeight: '700' }]}>
                   {missedYesterday ? 'Missed a day? That’s allowed.' : 'Keep your streak alive'}
                 </Text>
-                <Text style={[typography.caption, { color: c.textMuted, marginTop: 2 }]}>
+                <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
                   {missedYesterday
                     ? 'No judgment. Today is a fresh anchor — just show up.'
                     : `Day ${streak} and counting. One session protects it.`}
@@ -252,6 +258,7 @@ export default function HomeScreen() {
           <SectionHeader
             title="Anchors due today"
             subtitle={habits.length === 0 ? undefined : `${anchorsDueToday.length} to check in`}
+            style={{ marginTop: spacing.lg }}
           />
         </Reveal>
 
@@ -289,8 +296,8 @@ export default function HomeScreen() {
                 <Surface onPress={() => startSession(anchor)} radius="lg" style={styles.anchorCard}>
                   <IconBadge name={anchor.icon} color={anchor.color} />
                   <View style={styles.anchorInfo}>
-                    <Text style={[typography.heading, { color: c.text, fontSize: 17 }]}>{anchor.title}</Text>
-                    <Text style={[typography.caption, { color: c.textMuted, marginTop: 2 }]}>
+                    <Text style={[typography.headingSm, { color: c.text }]}>{anchor.title}</Text>
+                    <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
                       {anchor.targetDays} days • {anchor.minimumDuration} min
                     </Text>
                   </View>
@@ -337,7 +344,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     ...shadow.soft,
   },
-  heroStat: { flex: 1, paddingHorizontal: spacing.lg },
+  heroStat: { flex: 1, paddingHorizontal: spacing.md },
   recovery: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, padding: spacing.lg },
   anchorCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginTop: spacing.md },
   anchorInfo: { flex: 1, marginLeft: spacing.lg },
@@ -350,7 +357,7 @@ const styles = StyleSheet.create({
     borderRadius: corner.pill,
     marginTop: spacing.md,
   },
-  quickStartText: { color: colors.onAccent, fontWeight: '700', fontSize: 16, marginLeft: spacing.sm },
+  quickStartText: { ...typography.body, color: colors.onAccent, fontWeight: '700', marginLeft: spacing.sm },
   quickStartChevron: { marginLeft: spacing.sm, opacity: 0.8 },
   loading: { paddingVertical: spacing.xxxxl },
   doneWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxxxl, position: 'relative' },

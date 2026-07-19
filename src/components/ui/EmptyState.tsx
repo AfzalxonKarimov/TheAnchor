@@ -70,7 +70,7 @@ export function EmptyState({ icon, title, subtitle, cta, tint = colors.primary, 
           }}
         >
           <FontAwesome5 name="plus" size={14} color={colors.onAccent} style={{ marginRight: spacing.sm }} />
-          <Text style={{ color: colors.onAccent, fontWeight: '700', fontSize: 15 }}>{cta.label}</Text>
+          <Text style={{ ...typography.bodyMd, color: colors.onAccent, fontWeight: '700' }}>{cta.label}</Text>
         </TouchableOpacity>
       )}
     </Animated.View>

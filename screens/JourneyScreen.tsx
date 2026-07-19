@@ -137,10 +137,10 @@ export default function JourneyScreen() {
       <Reveal delay={index * 50}>
         <Surface radius="lg" style={styles.card}>
           <TouchableOpacity onPress={() => handleEdit(item)} activeOpacity={0.7} style={styles.cardBody}>
-            <IconBadge name={item.icon} color={item.color} box={54} size={24} />
+            <IconBadge name={item.icon} color={item.color} box={44} size={20} />
             <View style={styles.cardInfo}>
-              <Text style={[typography.heading, { color: c.text, fontSize: 17 }]}>{item.title}</Text>
-              <Text style={[typography.caption, { color: c.textMuted, marginTop: 2 }]}>
+              <Text style={[typography.headingSm, { color: c.text }]}>{item.title}</Text>
+              <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
                 {item.targetDays} days · {item.minimumDuration} min
               </Text>
               <View style={[styles.statusBadge, { backgroundColor: `${status.color}1F` }]}>
@@ -149,7 +149,7 @@ export default function JourneyScreen() {
               </View>
             </View>
           </TouchableOpacity>
-          <ProgressRing progress={(item.consistency ?? 0) / 100} size={50} strokeWidth={5} gradient color={item.color}>
+          <ProgressRing progress={(item.consistency ?? 0) / 100} size={48} strokeWidth={5} gradient color={item.color}>
             <Text style={[typography.caption, { color: c.text, fontWeight: '700' }]}>{Math.round(item.consistency ?? 0)}</Text>
           </ProgressRing>
           <TouchableOpacity onPress={() => startSession(item)} activeOpacity={0.8} style={[styles.startBtn, { backgroundColor: startColor }]}>
@@ -178,8 +178,8 @@ export default function JourneyScreen() {
               <Reveal>
                 <View style={styles.header}>
                   <View>
-                    <Text style={[typography.display, { color: c.text, fontSize: 34 }]}>Journey</Text>
-                    <Text style={[typography.small, { color: c.textMuted, marginTop: 2 }]}>Your anchors, in motion</Text>
+                    <Text style={[typography.displayXs, { color: c.text }]}>Journey</Text>
+                    <Text style={[typography.small, { color: c.textMuted, marginTop: spacing.xs }]}>Your anchors, in motion</Text>
                   </View>
                   <TouchableOpacity onPress={() => navigation.navigate('AddHabit')} activeOpacity={0.7} style={[styles.addBtn, { backgroundColor: `${colors.primary}1F` }]}>
                     <FontAwesome5 name="plus" size={18} color={colors.primary} />
@@ -221,7 +221,7 @@ export default function JourneyScreen() {
                     style={[styles.sortBtn, { backgroundColor: c.surfaceAlt }]}
                   >
                     <FontAwesome5 name={sort === 'name' ? 'sort-alpha-down' : 'sort-amount-down'} size={13} color={colors.primary} />
-                    <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '600', marginLeft: 6 }]}>
+                    <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '600', marginLeft: spacing.sm }]}>
                       {sort === 'name' ? 'Name' : 'Consistency'}
                     </Text>
                   </TouchableOpacity>
@@ -264,18 +264,18 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxxxl },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
   addBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  statsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
   controls: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
   chips: { gap: spacing.md, paddingRight: spacing.md },
-  chip: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm + 2, borderRadius: corner.pill },
-  sortBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2, borderRadius: corner.pill, marginLeft: spacing.md },
+  chip: { minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: corner.pill },
+  sortBtn: { flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: corner.pill, marginLeft: spacing.md },
   list: { paddingTop: 4, paddingBottom: spacing.xxxl },
   card: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginTop: spacing.md },
   cardBody: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   cardInfo: { flex: 1, marginLeft: spacing.lg },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: corner.pill, marginTop: spacing.sm, gap: 6 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: corner.pill, marginTop: spacing.sm, gap: spacing.xs },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 44, paddingHorizontal: spacing.lg, borderRadius: corner.pill, marginLeft: spacing.md },
-  startBtnText: { color: colors.onAccent, fontWeight: '700', fontSize: 14, marginLeft: 6 },
+  startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 44, paddingHorizontal: spacing.md, borderRadius: corner.pill, marginLeft: spacing.lg },
+  startBtnText: { ...typography.small, color: colors.onAccent, fontWeight: '700', marginLeft: spacing.xs },
   loading: { paddingVertical: spacing.xxxxl },
 });

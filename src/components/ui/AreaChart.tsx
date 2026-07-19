@@ -4,7 +4,7 @@ import Svg, { Path, Polyline, LinearGradient, Stop, Defs, Line, Circle as SvgCir
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 import { useThemeColors } from '../../theme/useThemeColors';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { typography, colors, spacing } from '../../constants/theme';
+import { typography, colors, spacing, shadow } from '../../constants/theme';
 import { smoothLine, smoothArea, pathLength } from '../../lib/smooth';
 
 interface AreaChartProps {
@@ -126,7 +126,7 @@ export function AreaChart({ data, labels, height = 150, formatValue, formatLabel
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.xs,
             alignItems: 'center',
-            ...shadowSoft(),
+            ...shadow.soft,
           }}
         >
           <Text style={[typography.small, { color: c.text, fontWeight: '700' }]}>
@@ -139,14 +139,4 @@ export function AreaChart({ data, labels, height = 150, formatValue, formatLabel
       )}
     </View>
   );
-}
-
-function shadowSoft() {
-  return {
-    shadowColor: '#0B1413',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  };
 }

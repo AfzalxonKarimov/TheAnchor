@@ -9,21 +9,27 @@ import { StyleSheet } from 'react-native';
 // ── Spacing — single 8pt grid (8 / 16 / 24 / 32 / 48) ───────────────
 // Every gap, pad, and margin in the app resolves to one of these tokens so
 // rhythm stays consistent across screens. (4px kept only for micro-insets.)
+// Every value lives on the single 8pt grid: 4 (micro-inset only) / 8 / 16 / 24 / 32 / 48.
+// `lg` and `xl` intentionally resolve to the same 24 so cards and section gaps
+// share one rhythm; `md` (16) is the tight intra-card gap.
 export const spacing = {
   xs: 4,
   sm: 8,
   md: 16,
-  lg: 20,
+  lg: 24,
   xl: 24,
   xxl: 32,
-  xxxl: 40,
+  xxxl: 48,
   xxxxl: 48,
 } as const;
 
 // ── Corner radius ───────────────────────────────────────────────────────
 export const corner = {
+  xs: 12, // compact inputs, inner pills
   sm: 16, // small surfaces, pills inside cards
+  field: 14, // form fields & controls
   md: 18, // buttons
+  control: 20, // circular controls (color swatches)
   lg: 24, // cards
   xl: 24, // large hero surfaces (kept on the 24px card grid)
   pill: 999,
@@ -69,6 +75,61 @@ export const typography = {
     fontSize: 11,
     fontWeight: '700' as const,
     letterSpacing: 1.5,
+  },
+  // ── Intermediate sizes used across screens (centralized to stop inline
+  //    fontSize overrides). Numbers mirror what was previously hard-coded. ──
+  micro: {
+    fontSize: 10,
+    fontWeight: '400' as const,
+  },
+  bodyMd: {
+    fontSize: 15,
+    fontWeight: '400' as const,
+  },
+  headingSm: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    letterSpacing: -0.3,
+  },
+  headingMd: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    letterSpacing: -0.3,
+  },
+  headingLg: {
+    fontSize: 22,
+    fontWeight: '600' as const,
+    letterSpacing: -0.3,
+  },
+  displayXxs: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    letterSpacing: -0.5,
+    lineHeight: 38,
+  },
+  displayXs: {
+    fontSize: 34,
+    fontWeight: '700' as const,
+    letterSpacing: -1,
+    lineHeight: 40,
+  },
+  displaySm: {
+    fontSize: 36,
+    fontWeight: '700' as const,
+    letterSpacing: -1,
+    lineHeight: 42,
+  },
+  displayMd: {
+    fontSize: 40,
+    fontWeight: '700' as const,
+    letterSpacing: -1.5,
+    lineHeight: 46,
+  },
+  displayLg: {
+    fontSize: 52,
+    fontWeight: '700' as const,
+    letterSpacing: -1.5,
+    lineHeight: 58,
   },
 } as const;
 

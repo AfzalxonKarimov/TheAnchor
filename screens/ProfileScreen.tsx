@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { AchievementGlyph } from '../src/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { spacing, typography, colors, corner } from '../src/constants/theme';
 import { getLevelFromXP, getRankFromLevel, getLevelProgress, getXPForNextLevel } from '../lib/leveling';
@@ -87,10 +88,10 @@ export default function ProfileScreen() {
           <View style={styles.identity}>
             <ProgressRing progress={getLevelProgress(xp)} size={120} strokeWidth={6}>
               <View style={[styles.avatar, { backgroundColor: `${colors.primary}1F` }]}>
-                <FontAwesome5 name="anchor" size={34} color={colors.primary} />
+                <AchievementGlyph name="anchor" size={34} color={colors.primary} />
               </View>
             </ProgressRing>
-            <Text style={[typography.heading, { color: c.text, marginTop: spacing.lg }]}>{name}</Text>
+            <Text style={[typography.heading, { color: c.text, marginTop: spacing.xxl }]}>{name}</Text>
             <View style={[styles.rankChip, { backgroundColor: `${colors.primary}1F` }]}>
               <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700' }]}>{rank} · Level {level}</Text>
             </View>
@@ -103,11 +104,11 @@ export default function ProfileScreen() {
             <View style={styles.levelRow}>
               <View>
                 <Text style={[typography.caption, { color: c.textMuted }]}>Total XP</Text>
-                <Text style={[typography.display, { color: c.text, fontSize: 32, marginTop: 2 }]}>{xp}</Text>
+                <Text style={[typography.displayXxs, { color: c.text, marginTop: spacing.xs }]}>{xp}</Text>
               </View>
               <View style={[styles.xpBadge, { backgroundColor: `${colors.primary}1F` }]}>
                 <FontAwesome5 name="bolt" size={13} color={colors.primary} />
-                <Text style={[typography.small, { color: colors.primaryStrong, fontWeight: '700', marginLeft: 6 }]}>Lv {level}</Text>
+                <Text style={[typography.small, { color: colors.primaryStrong, fontWeight: '700', marginLeft: spacing.sm }]}>Lv {level}</Text>
               </View>
             </View>
             <XPBar progress={getLevelProgress(xp)} style={{ marginTop: spacing.lg }} />
@@ -159,14 +160,14 @@ export default function ProfileScreen() {
         {/* Subscription — calm membership card, not an ad */}
         {SHOW_SUBSCRIPTION && (
           <Reveal delay={220}>
-            <Surface radius="xl" style={[styles.card, styles.subCard]}>
+            <Surface radius="xl" style={[styles.card, styles.subCard, { paddingVertical: spacing.xxl }]}>
               <View style={[styles.subWash, { backgroundColor: `${colors.primary}0A` }]} pointerEvents="none" />
               <View style={styles.subRow}>
-                <IconBadge name="crown" color={colors.primary} box={44} size={19} />
+                <IconBadge name="crown" color={colors.primary} box={44} size={20} />
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   <Text style={[typography.eyebrow, { color: colors.primaryStrong }]}>MEMBERSHIP</Text>
                   <Text style={[typography.heading, { color: c.text, marginTop: spacing.xs }]}>TheAnchor Plus</Text>
-                  <Text style={[typography.caption, { color: c.textMuted, marginTop: 2 }]}>
+                  <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
                     Recovery insights · unlimited anchors
                   </Text>
                 </View>
@@ -180,7 +181,7 @@ export default function ProfileScreen() {
 
         {/* Logout */}
         <Reveal delay={260}>
-          <TouchableOpacity onPress={handleLogout} disabled={loggingOut} activeOpacity={0.7} style={[styles.logout, { borderColor: c.hairline }]}>
+          <TouchableOpacity onPress={handleLogout} disabled={loggingOut} activeOpacity={0.7} style={[styles.logout, { borderColor: c.hairline, marginTop: spacing.xl }]}>
             <FontAwesome5 name="sign-out-alt" size={16} color={colors.error} />
             <Text style={[styles.logoutText, { color: colors.errorStrong }]}>{loggingOut ? 'Logging out…' : 'Log out'}</Text>
           </TouchableOpacity>
@@ -202,7 +203,7 @@ function SettingRow({ icon, label, isToggle, value, onValueChange, onPress, last
       activeOpacity={onPress ? 0.7 : 1}
       style={[styles.settingRow, !last && { borderBottomWidth: 1, borderBottomColor: c.hairline }]}
     >
-      <IconBadge name={icon} color={colors.primary} box={34} size={14} />
+      <IconBadge name={icon} color={colors.primary} box={36} size={16} />
       <Text style={[typography.small, { color: c.text, flex: 1, marginLeft: spacing.md }]}>{label}</Text>
       {isToggle ? (
         <Switch
@@ -221,18 +222,18 @@ function SettingRow({ icon, label, isToggle, value, onValueChange, onPress, last
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: spacing.xl, paddingBottom: spacing.xxxxl },
-  identity: { alignItems: 'center', marginBottom: spacing.lg },
+  identity: { alignItems: 'center', marginBottom: spacing.xxl },
   avatar: { width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' },
-  rankChip: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, borderRadius: corner.pill, marginTop: spacing.sm },
-  card: { padding: spacing.xl, marginBottom: spacing.lg },
+  rankChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: corner.pill, marginTop: spacing.sm },
+  card: { padding: spacing.xl, marginBottom: spacing.xxl },
   levelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   xpBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: corner.pill },
   statRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
   subCard: { overflow: 'hidden' },
   subWash: { position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: 70 },
   subRow: { flexDirection: 'row', alignItems: 'center' },
-  manageBtn: { paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: corner.pill, backgroundColor: 'transparent', borderWidth: 1 },
+  manageBtn: { minHeight: 44, paddingHorizontal: spacing.xl, paddingVertical: spacing.sm, borderRadius: corner.pill, backgroundColor: 'transparent', borderWidth: 1 },
   settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.lg },
   logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.lg, borderRadius: corner.md, borderWidth: 1, marginTop: spacing.md },
-  logoutText: { fontSize: 16, fontWeight: '600' },
+  logoutText: { ...typography.body, fontWeight: '600' },
 });

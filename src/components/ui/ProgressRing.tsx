@@ -132,7 +132,9 @@ export function ProgressRing({
         />
       </Svg>
       {children != null && (
-        <View style={StyleSheet.absoluteFill}>{children}</View>
+        <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+          {children}
+        </View>
       )}
     </View>
   );

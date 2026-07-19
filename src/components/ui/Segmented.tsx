@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ViewStyle, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '../../theme/useThemeColors';
-import { typography, colors, spacing, corner } from '../../constants/theme';
+import { typography, colors, spacing, corner, shadow } from '../../constants/theme';
 
 interface SegmentedProps {
   options: { key: string; label: string }[];
@@ -39,7 +39,7 @@ export function Segmented({ options, value, onChange, style }: SegmentedProps) {
               borderRadius: corner.pill,
               backgroundColor: active ? c.surface : 'transparent',
               alignItems: 'center',
-              ...(active ? shadowSoft() : {}),
+              ...(active ? shadow.soft : {}),
             }}
           >
             <Text
@@ -55,14 +55,4 @@ export function Segmented({ options, value, onChange, style }: SegmentedProps) {
       })}
     </View>
   );
-}
-
-function shadowSoft() {
-  return {
-    shadowColor: '#0B1413',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
-  };
 }

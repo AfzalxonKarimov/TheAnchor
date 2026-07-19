@@ -9,7 +9,7 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../src/auth/AuthContext';
 import { useThemeColors } from '../src/theme/useThemeColors';
-import { spacing } from '../src/constants/theme';
+import { spacing, typography } from '../src/constants/theme';
 
 export default function LoginScreen({ navigation }) {
   const { session, signingIn, signInReady, signInWithGoogle } = useAuth();
@@ -85,13 +85,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 28,
+    ...typography.title,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.body,
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -106,14 +106,14 @@ const styles = StyleSheet.create({
   },
   googleButtonDisabled: { opacity: 0.7 },
   googleIcon: { marginRight: 10 },
-  googleButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  googleButtonText: { ...typography.body, color: '#fff', fontWeight: 'bold' },
   devButton: {
     marginTop: 28,
     paddingVertical: 8,
     alignItems: 'center',
   },
   devButtonText: {
+    ...typography.small,
     fontWeight: '500',
-    fontSize: 14,
   },
 });

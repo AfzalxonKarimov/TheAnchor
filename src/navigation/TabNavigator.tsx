@@ -343,7 +343,11 @@ function AnchorSelectionModal({
 
 const styles = StyleSheet.create({
   container: {
-    ...baseStyles.shadow,
+    shadowColor: '#050807',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
     borderTopWidth: 0.5,
     position: 'absolute',
     bottom: 0,
@@ -413,8 +417,8 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   closeText: {
+    ...typography.body,
     color: colors.primaryStrong,
-    fontSize: 16,
   },
   modalList: {
     padding: spacing.xl,
@@ -425,7 +429,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
     borderWidth: 2,
-    borderRadius: 16,
+    borderRadius: 24,
     marginBottom: spacing.md,
     backgroundColor: colors.light.background,
   },
@@ -438,12 +442,11 @@ const styles = StyleSheet.create({
   },
   anchorInfo: { flex: 1 },
   anchorTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    ...typography.headingSm,
     marginBottom: 4,
   },
   anchorDetails: {
-    fontSize: 14,
+    ...typography.small,
     color: colors.neutral[500],
   },
   emptyAnchors: {
@@ -451,7 +454,7 @@ const styles = StyleSheet.create({
     padding: spacing.xxxl,
   },
   emptyText: {
-    fontSize: 16,
+    ...typography.body,
     color: colors.neutral[500],
     textAlign: 'center',
   },
