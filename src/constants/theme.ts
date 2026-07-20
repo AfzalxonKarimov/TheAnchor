@@ -199,13 +199,68 @@ export const colors = {
 } as const;
 
 // ── Navigation-specific tokens ──────────────────────────────────────────
+// Tuned for a floating, glassy, Apple-first-party feel.
 export const navigationTokens = {
-  tabBarHeight: 84,
-  floatingButtonSize: 56, // reduced 12% from 64 for visual balance
+  /** Legacy: total reserved vertical space for a non-floating bar. Kept for
+   *  any consumers still measuring against it; the live nav uses the tokens
+   *  below instead. */
+  tabBarHeight: 112,
+  /** Center check-in button diameter (px). Smaller + lighter than before. */
+  floatingButtonSize: 52,
+  /** Resting / active icon size (px). Active emphasis comes from scale + tint,
+   *  not a size jump, so these stay close. */
   iconSize: 22,
-  iconSizeActive: 24,
-  cornerRadius: 24,
-  borderWidth: 0.5,
+  iconSizeActive: 23,
+  /** Pill corner radius — large + soft (24–30px range). */
+  cornerRadius: 28,
+  /** Hairline border weight (px). Thin, low-opacity. */
+  borderWidth: 1,
+  /** Gap between the floating pill's bottom and the bottom safe-area edge. */
+  floatingBottomMargin: 12,
+  /** How far the crowned FAB rises above the pill's top edge (px). */
+  fabProtrusion: 18,
+  /** Bottom padding screens should reserve so content clears the floating nav. */
+  tabClearance: 112,
+  /** Tab label size (pt). 11pt, medium weight — small + calm. */
+  labelSize: 11,
+  /** Vertical breathing room inside the pill (px, per side). */
+  pillVerticalPadding: 8,
+
+  // ── Liquid Glass navigation tokens (new floating nav) ──────────────
+  /** Horizontal inset from screen edges (px). The capsule must float clear. */
+  horizontalMargin: 18,
+  /** Bottom inset above the safe area (px). */
+  bottomMargin: 16,
+  /** Capsule corner radius (px) — 30–34 premium range. */
+  capsuleRadius: 32,
+  /** Blur intensity for the glass capsule (light / dark). */
+  glassIntensityLight: 72,
+  glassIntensityDark: 96,
+  /** Resting icon size (px) per design spec. */
+  iconSizeGlass: 24,
+  /** Active icon scale + lift (px). */
+  iconActiveScale: 1.08,
+  iconActiveLift: -2,
+  /** Total capsule height (px) — tall enough to seat the crowned center button. */
+  capsuleHeight: 76,
+  /** Center check-in button diameter (px). Refined + lighter than before. */
+  centerButtonSize: 50,
+  /** How far the crowned center button rises above the capsule top (px). */
+  centerProtrusion: 16,
+  /** Liquid glass bead behind the active icon (px). */
+  indicatorWidth: 54,
+  indicatorHeight: 40,
+  /** Vertical offset of the icon center above the slot center (px), so the
+   *  bead lands on the icon rather than the icon+label group. */
+  iconBlockOffset: 9,
+  /** Tab label size (pt) for the glass nav. */
+  labelSizeGlass: 11,
+  /** Spring config for the sliding indicator glide. */
+  indicatorSpring: { damping: 20, stiffness: 200 } as const,
+  /** Spring config for the center button press. */
+  pressSpring: { damping: 12, stiffness: 340 } as const,
+  /** Entrance offset (px) — nav fades upward on app open. */
+  enterOffset: 22,
 } as const;
 
 // ── Animation — subtle, springy, calm ───────────────────────────────────
@@ -252,6 +307,47 @@ export const glass = {
   dark: {
     backgroundColor: 'rgba(20,27,24,0.72)',
     borderColor: 'rgba(255,255,255,0.08)',
+  },
+} as const;
+
+// ── Liquid Glass navigation palette ─────────────────────────────────────
+// Theme-adaptive layered colors for the floating glass capsule, the sliding
+// active bead, and the crowned center button. Each layer is tuned so the
+// material reads as real glass (translucent tint + low-opacity white sheen +
+// crisp inner highlight) rather than a flat translucent rectangle.
+export const liquidGlass = {
+  light: {
+    /** Low-opacity white tint — the translucent surface itself. */
+    tint: 'rgba(248,250,250,0.50)',
+    /** Subtle outer border (1px). */
+    border: 'rgba(255,255,255,0.55)',
+    /** 1px inner highlight ring (crisp glass edge). */
+    innerHighlight: 'rgba(255,255,255,0.90)',
+    /** Top sheen — internal highlight / soft edge reflection. */
+    sheen: 'rgba(255,255,255,0.55)',
+    sheenOpacity: 0.55,
+    /** Dynamic shadow color. */
+    shadow: '#04100E',
+    /** Liquid bead behind the active icon. */
+    indicatorFill: 'rgba(45,212,191,0.18)',
+    indicatorBorder: 'rgba(45,212,191,0.35)',
+    /** Crowned center button. */
+    centerFill: '#2DD4BF',
+    centerBorder: 'rgba(255,255,255,0.50)',
+    centerSheen: 'rgba(255,255,255,0.38)',
+  },
+  dark: {
+    tint: 'rgba(16,24,21,0.55)',
+    border: 'rgba(255,255,255,0.14)',
+    innerHighlight: 'rgba(255,255,255,0.20)',
+    sheen: 'rgba(255,255,255,0.16)',
+    sheenOpacity: 0.16,
+    shadow: '#000000',
+    indicatorFill: 'rgba(45,212,191,0.26)',
+    indicatorBorder: 'rgba(45,212,191,0.45)',
+    centerFill: '#2DD4BF',
+    centerBorder: 'rgba(255,255,255,0.16)',
+    centerSheen: 'rgba(255,255,255,0.18)',
   },
 } as const;
 

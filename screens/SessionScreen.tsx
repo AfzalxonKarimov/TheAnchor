@@ -10,6 +10,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AchievementGlyph } from '../src/components/ui';
@@ -20,7 +21,6 @@ import { Anchor } from '../src/navigation/types';
 import { supabase } from '../src/supabase/client';
 import { awardSessionXP } from '../src/supabase/sessions';
 import { updateMomentum } from '../lib/momentum';
-import { getStreak } from '../src/supabase/streaks';
 import LevelUpModal from '../src/components/LevelUpModal';
 import { ProgressRing } from '../src/components/ui';
 import { BreathingPulse } from '../src/components/ui';
@@ -36,6 +36,16 @@ interface SessionScreenProps {
 
 const RING_STROKE = 16;
 
+// Persist in-progress sessions so an app kill / background doesn't silently
+// throw away the user's time. Keyed per anchor; cleared on finish / discard.
+const sessionStorageKey = (id: string) => `theanchor:session:${id}`;
+const persistSession = async (id: string, state: { startTs: number | null; accumulated: number; isActive: boolean }) => {
+  try { await AsyncStorage.setItem(sessionStorageKey(id), JSON.stringify(state)); } catch { /* best-effort */ }
+};
+const clearPersistedSession = async (id: string) => {
+  try { await AsyncStorage.removeItem(sessionStorageKey(id)); } catch { /* best-effort */ }
+};
+
 export default function SessionScreen({ route, navigation }: SessionScreenProps) {
   const { anchorId } = route.params;
   const c = useThemeColors();
@@ -47,7 +57,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
   const [isActive, setIsActive] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [levelUpInfo, setLevelUpInfo] = useState<LevelUpInfo | null>(null);
-  const [celebration, setCelebration] = useState<{ xp: number; streak: number } | null>(null);
+  const [celebration, setCelebration] = useState<{ xp: number } | null>(null);
   const [burst, setBurst] = useState(0);
 
   const startTs = useRef<number | null>(null);
@@ -69,6 +79,27 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
     };
     loadAnchor();
   }, [anchorId]);
+
+  // Restore a session that was in progress before an app kill / crash.
+  useEffect(() => {
+    if (!anchor) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(sessionStorageKey(anchorId));
+        if (!raw || cancelled) return;
+        const saved = JSON.parse(raw) as { startTs: number | null; accumulated: number; isActive: boolean };
+        const runningSince = saved.startTs != null ? (Date.now() - saved.startTs) / 1000 : 0;
+        const total = saved.accumulated + Math.max(0, runningSince);
+        if (total < 1) return;
+        // Resume paused (never auto-start) so the user re-engages intentionally.
+        accumulated.current = total;
+        setSeconds(Math.floor(total));
+        setIsActive(false);
+      } catch { /* ignore malformed cache */ }
+    })();
+    return () => { cancelled = true; };
+  }, [anchor, anchorId]);
 
   useEffect(() => {
     if (isActive) {
@@ -107,6 +138,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
   const handleStart = () => {
     startTs.current = Date.now();
     setIsActive(true);
+    persistSession(anchorId, { startTs: startTs.current, accumulated: 0, isActive: true });
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   };
   const handlePause = () => {
@@ -115,8 +147,9 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
       startTs.current = null;
     }
     setIsActive(false);
+    persistSession(anchorId, { startTs: null, accumulated: accumulated.current, isActive: false });
   };
-  const resetTimer = () => { accumulated.current = 0; startTs.current = null; setSeconds(0); setIsActive(false); };
+  const resetTimer = () => { accumulated.current = 0; startTs.current = null; setSeconds(0); setIsActive(false); clearPersistedSession(anchorId); };
 
   const doFinish = async (elapsed: number) => {
     if (elapsed < 1) { Alert.alert('Error', 'Session must be at least 1 second'); return; }
@@ -127,12 +160,11 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
       let result;
       try { result = await awardSessionXP({ anchorId, durationSeconds: Math.round(elapsed) }); }
       catch (rpcError) { console.error(rpcError); Alert.alert('Error', 'Failed to save session.'); setIsSaving(false); return; }
-      try { const streak = await getStreak(); await updateMomentum({ userId: user.id, durationSeconds: Math.round(elapsed), streak }); } catch (e) { console.warn(e); }
+      try { await updateMomentum({ userId: user.id, durationSeconds: Math.round(elapsed) }); } catch (e) { console.warn(e); }
 
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setBurst((b) => b + 1);
-      const streak = await getStreak();
-      setCelebration({ xp: result.xpAwarded, streak });
+      setCelebration({ xp: result.xpAwarded });
       celebrateScale.setValue(0.9); celebrateOpacity.setValue(0);
       Animated.parallel([
         Animated.spring(celebrateScale, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }),
@@ -140,6 +172,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
       ]).start();
 
       resetTimer();
+      await clearPersistedSession(anchorId);
       if (result.leveledUp) {
         setTimeout(() => {
           setCelebration(null);
@@ -162,6 +195,26 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
     } else doFinish(elapsed);
   };
 
+  // Confirm before discarding an active / in-progress timer — never silently
+  // throw the user's time away (explicit doc edge case).
+  const handleClose = () => {
+    const elapsed = getElapsed();
+    if (isSaving) return;
+    if (elapsed > 1 || isActive) {
+      Alert.alert(
+        'Discard this session?',
+        'Your time so far won’t be saved.',
+        [
+          { text: 'Keep going', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: () => { clearPersistedSession(anchorId); navigation.goBack(); } },
+        ],
+      );
+    } else {
+      clearPersistedSession(anchorId);
+      navigation.goBack();
+    }
+  };
+
   const ringColor = minimumMet ? colors.success : colors.primary;
 
   return (
@@ -174,7 +227,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={[styles.closeBtn, { backgroundColor: c.surfaceAlt }]}>
+          <TouchableOpacity onPress={handleClose} activeOpacity={0.7} style={[styles.closeBtn, { backgroundColor: c.surfaceAlt }]}>
             <FontAwesome5 name="times" size={16} color={c.textSecondary} />
           </TouchableOpacity>
           <View style={{ alignItems: 'center', flex: 1 }}>
@@ -237,7 +290,7 @@ export default function SessionScreen({ route, navigation }: SessionScreenProps)
               <Text style={[typography.small, { color: colors.primaryStrong, fontWeight: '700', marginLeft: spacing.sm }]}>+{celebration.xp} XP</Text>
             </View>
             <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.md }]}>
-              Day {celebration.streak} streak · momentum restored
+              You showed up · momentum forward
             </Text>
             <TouchableOpacity
               style={[styles.continueBtn, { backgroundColor: colors.primary }]}

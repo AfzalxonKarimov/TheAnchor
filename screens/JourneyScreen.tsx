@@ -13,7 +13,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { spacing, typography, colors, corner } from '../src/constants/theme';
+import { spacing, typography, colors, corner, navigationTokens } from '../src/constants/theme';
 import { Anchor, RootStackParamList } from '../src/navigation/types';
 import { supabase } from '../src/supabase/client';
 import { getSessionsByAnchor, computeConsistency } from '../src/supabase/sessions';
@@ -261,7 +261,7 @@ export default function JourneyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.xxxxl },
+  scroll: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: navigationTokens.tabClearance },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
   addBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   chips: { gap: spacing.md, paddingRight: spacing.md },
   chip: { minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: corner.pill },
   sortBtn: { flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: corner.pill, marginLeft: spacing.md },
-  list: { paddingTop: 4, paddingBottom: spacing.xxxl },
+  list: { paddingTop: 4, paddingBottom: navigationTokens.tabClearance },
   card: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginTop: spacing.md },
   cardBody: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   cardInfo: { flex: 1, marginLeft: spacing.lg },

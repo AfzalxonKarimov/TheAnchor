@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { useTheme } from '../src/theme/ThemeProvider';
+import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AchievementGlyph } from '../src/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -52,7 +52,7 @@ interface EditAnchorScreenProps {
  */
 export default function EditAnchorScreen({ route, navigation }: EditAnchorScreenProps) {
   const { anchor } = route.params;
-  const { isDark } = useTheme();
+  const c = useThemeColors();
 
   const [title, setTitle] = useState(anchor.title);
   const [icon, setIcon] = useState(anchor.icon || 'anchor');
@@ -63,12 +63,6 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const busy = isSaving || isDeleting;
-
-  const bg = isDark ? colors.dark.background : colors.light.background;
-  const surface = isDark ? colors.dark.surface : colors.light.surface;
-  const text = isDark ? colors.dark.text : colors.light.text;
-  const textMuted = isDark ? colors.dark.textMuted : colors.light.textMuted;
-  const border = isDark ? colors.dark.border : colors.light.border;
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -144,7 +138,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -152,9 +146,9 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
           style={styles.headerButton}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <FontAwesome5 name="times" size={20} color={textMuted} />
+          <FontAwesome5 name="times" size={20} color={c.textMuted} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: text }]}>Edit Anchor</Text>
+        <Text style={[styles.headerTitle, { color: c.text }]}>Edit Anchor</Text>
         <View style={styles.headerButton} />
       </View>
 
@@ -168,15 +162,15 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
           <View style={[styles.previewIcon, { backgroundColor: `${color}20` }]}>
             <FontAwesome5 name={icon as any} size={30} color={color} />
           </View>
-          <Text style={[styles.previewTitle, { color: text }]} numberOfLines={1}>
+          <Text style={[styles.previewTitle, { color: c.text }]} numberOfLines={1}>
             {title.trim() || 'Your anchor'}
           </Text>
         </View>
 
         {/* Name */}
-        <Text style={[styles.label, { color: textMuted }]}>NAME</Text>
+        <Text style={[styles.label, { color: c.textMuted }]}>NAME</Text>
         <TextInput
-          style={[styles.input, { backgroundColor: surface, color: text, borderColor: border }]}
+          style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
           value={title}
           onChangeText={setTitle}
           placeholder="Anchor name"
@@ -185,7 +179,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
         />
 
         {/* Icon picker */}
-        <Text style={[styles.label, { color: textMuted }]}>ICON</Text>
+        <Text style={[styles.label, { color: c.textMuted }]}>ICON</Text>
         <View style={styles.pickerGrid}>
           {ICON_OPTIONS.map((opt) => {
             const selected = opt === icon;
@@ -197,7 +191,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
                 style={[
                   styles.iconOption,
                   {
-                    backgroundColor: selected ? `${color}20` : surface,
+                    backgroundColor: selected ? `${color}20` : c.surface,
                     borderColor: selected ? color : 'transparent',
                   },
                 ]}
@@ -205,7 +199,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
                 <FontAwesome5
                   name={opt as any}
                   size={18}
-                  color={selected ? color : textMuted}
+                  color={selected ? color : c.textMuted}
                 />
               </TouchableOpacity>
             );
@@ -213,7 +207,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
         </View>
 
         {/* Color picker */}
-        <Text style={[styles.label, { color: textMuted }]}>COLOR</Text>
+        <Text style={[styles.label, { color: c.textMuted }]}>COLOR</Text>
         <View style={styles.pickerRow}>
           {COLOR_OPTIONS.map((opt) => {
             const selected = opt === color;
@@ -224,7 +218,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
                 activeOpacity={0.7}
                 style={[
                   styles.colorOption,
-                  { backgroundColor: opt, borderColor: selected ? text : 'transparent' },
+                  { backgroundColor: opt, borderColor: selected ? c.text : 'transparent' },
                 ]}
               >
                 {selected && <AchievementGlyph name="check" size={12} color="#fff" />}
@@ -236,9 +230,9 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
         {/* Duration + days */}
         <View style={styles.numberRow}>
           <View style={styles.numberField}>
-            <Text style={[styles.label, { color: textMuted }]}>MIN / SESSION</Text>
+            <Text style={[styles.label, { color: c.textMuted }]}>MIN / SESSION</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: surface, color: text, borderColor: border }]}
+              style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
               value={duration}
               onChangeText={setDuration}
               keyboardType="numeric"
@@ -247,9 +241,9 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
             />
           </View>
           <View style={styles.numberField}>
-            <Text style={[styles.label, { color: textMuted }]}>DAYS / WEEK</Text>
+            <Text style={[styles.label, { color: c.textMuted }]}>DAYS / WEEK</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: surface, color: text, borderColor: border }]}
+              style={[styles.input, { backgroundColor: c.surface, color: c.text, borderColor: c.border }]}
               value={days}
               onChangeText={setDays}
               keyboardType="numeric"
@@ -267,7 +261,7 @@ export default function EditAnchorScreen({ route, navigation }: EditAnchorScreen
           activeOpacity={0.8}
         >
           {isSaving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onAccent} />
           ) : (
             <Text style={styles.saveButtonText}>Save Changes</Text>
           )}

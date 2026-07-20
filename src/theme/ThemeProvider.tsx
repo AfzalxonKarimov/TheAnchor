@@ -8,14 +8,16 @@ import React, {
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeContextValue {
   /** Effective dark-mode flag used by all screens for styling. */
   isDark: boolean;
-  /** The user's explicit choice ('light' | 'dark'). Persisted. */
+  /** The user's explicit choice ('light' | 'dark' | 'system'). Persisted. */
   mode: ThemeMode;
-  /** Set the explicit theme (overrides system). */
+  /** True when the resolved appearance follows the OS (mode === 'system'). */
+  followSystem: boolean;
+  /** Set the explicit theme (overrides system when not 'system'). */
   setMode: (mode: ThemeMode) => void;
   /** Convenience toggle between light and dark. */
   toggle: () => void;
@@ -46,7 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((stored) => {
         if (!mounted) return;
-        if (stored === 'light' || stored === 'dark') {
+        if (stored === 'light' || stored === 'dark' || stored === 'system') {
           setModeState(stored);
         } else {
           setModeState(systemIsDark ? 'dark' : 'light');
@@ -71,9 +73,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setMode(mode === 'dark' ? 'light' : 'dark');
   }, [mode, setMode]);
 
+  const resolvedIsDark = mode === 'system' ? systemIsDark : mode === 'dark';
+
   const value: ThemeContextValue = {
-    isDark: mode === 'dark',
+    isDark: resolvedIsDark,
     mode,
+    followSystem: mode === 'system',
     setMode,
     toggle,
   };

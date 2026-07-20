@@ -38,16 +38,27 @@ export function QuoteCard({ date, style }: QuoteCardProps) {
       style={[
         {
           borderRadius: corner.lg,
-          paddingVertical: spacing.md,
+          paddingVertical: spacing.lg,
           paddingHorizontal: spacing.xl,
           backgroundColor: c.surfaceAlt,
           borderWidth: 1,
           borderColor: c.hairline,
+          overflow: 'hidden',
         },
         style,
       ]}
     >
-      <FontAwesome5 name="quote-left" size={18} color={colors.primary} style={{ marginBottom: spacing.sm, opacity: 0.7 }} />
+      {/* Faint teal depth wash — keeps the card from reading as a flat fill. */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', top: -28, right: -28, width: 150, height: 150, borderRadius: 75, backgroundColor: `${colors.primary}0F` }}
+      />
+      {/* Left accent rule — signals this block is an insight/quote, not a surface. */}
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', left: 0, top: spacing.lg, bottom: spacing.lg, width: 3, borderRadius: 2, backgroundColor: `${colors.primary}55` }}
+      />
+      <FontAwesome5 name="quote-left" size={20} color={colors.primary} style={{ marginBottom: spacing.sm, opacity: 0.55 }} />
       <Text style={[typography.headingSm, { color: c.text, lineHeight: 26, fontWeight: '500' }]}>
         {item.text}
       </Text>

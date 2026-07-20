@@ -16,3 +16,11 @@ export const GOOGLE_ANDROID_CLIENT_ID =
 // True when a real web client ID has been provided (not the placeholder).
 export const isGoogleConfigured = () =>
   GOOGLE_WEB_CLIENT_ID !== 'YOUR_GOOGLE_WEB_CLIENT_ID';
+
+// Dev-only "Skip login" affordance on the login screen.
+// NEVER appears in a production build: `__DEV__` is compiled to `false` by the
+// release toolchain, and it can be independently suppressed via the
+// EXPO_PUBLIC_DEV_LOGIN env var (set to "false"). Both gates must be false for
+// the button to render, so a production binary can never show it.
+export const SHOW_DEV_LOGIN =
+  __DEV__ && process.env.EXPO_PUBLIC_DEV_LOGIN !== 'false';

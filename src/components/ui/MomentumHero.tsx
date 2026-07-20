@@ -4,6 +4,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Path as SvgPath } from 'react-native-svg';
 import { useThemeColors } from '../../theme/useThemeColors';
 import { typography, colors, spacing, corner, shadow } from '../../constants/theme';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { smoothLine } from '../../lib/smooth';
 import { AreaChart } from './AreaChart';
 
@@ -29,6 +30,7 @@ const STATUS_META: Record<MomentumStatus, { label: string; tint: string }> = {
 export function MomentumHero({ momentum, trend, status = 'on_track', subLine, delta = 0, style }: MomentumHeroProps) {
   const c = useThemeColors();
   const meta = STATUS_META[status];
+  const reduced = useReducedMotion();
 
   // Smooth count-up using rAF timestamps (no Date.now needed).
   const [display, setDisplay] = useState(0);
@@ -36,14 +38,15 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
   const countedRef = useRef(false);
   useEffect(() => {
     const target = Math.round(momentum);
-    // After the first real count-up, snap on subsequent data refreshes so the
-    // number doesn't re-animate from 0 every time the screen regains focus.
-    if (countedRef.current) {
+    // Reduced-motion users (and subsequent refreshes) snap instantly — no replay.
+    if (reduced || countedRef.current) {
       setDisplay(target);
+      countedRef.current = true;
       return;
     }
     if (target === 0) {
       setDisplay(0);
+      countedRef.current = true;
       return;
     }
     countedRef.current = true;
@@ -60,7 +63,7 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [momentum]);
+  }, [momentum, reduced]);
 
   // Wide sparkline behind the number for depth (Apple Stocks feel).
   const sw = 220;
@@ -82,10 +85,12 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
 
   return (
     <View
+      accessibilityLabel={`Momentum ${display} out of 100, ${meta.label}`}
       style={[
         {
           borderRadius: corner.xl,
-          paddingVertical: spacing.md,
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xl,
           paddingHorizontal: spacing.xl,
           backgroundColor: c.surface,
           borderWidth: 1,
@@ -98,7 +103,7 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
     >
       {/* Ambient sparkline wash */}
       {sparkPath ? (
-        <Svg width={sw} height={sh} style={{ position: 'absolute', top: -8, right: -8, opacity: 0.9 }}>
+        <Svg width={sw} height={sh} style={{ position: 'absolute', top: -8, right: -8, opacity: 0.5 }}>
           <Defs>
             <LinearGradient id="mhero-wash" x1="0%" y1="0%" x2="100%" y2="0%">
               <Stop offset="0%" stopColor={c.accentSoft} stopOpacity={0.06} />
@@ -135,9 +140,10 @@ export function MomentumHero({ momentum, trend, status = 'on_track', subLine, de
         </View>
       </View>
 
-      {/* Full-width trend chart */}
-      <View style={{ marginTop: spacing.md }}>
-        <AreaChart data={trend} height={160} formatValue={(v) => `${v} sessions`} />
+      {/* Full-width trend chart — kept compact so the momentum number
+          stays the hero of the card. */}
+      <View style={{ marginTop: spacing.lg }}>
+        <AreaChart data={trend} height={104} formatValue={(v) => `${v} sessions`} />
       </View>
 
       {/* Delta + encouraging line */}

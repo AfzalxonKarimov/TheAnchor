@@ -3,26 +3,29 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
+  TouchableWithoutFeedback,
   StyleSheet,
   Animated,
+  Easing,
+  Platform,
+  ViewStyle,
 } from 'react-native';
 import { useThemeColors } from '../src/theme/useThemeColors';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/supabase/client';
-import { getLevelFromXP, getRankFromLevel, getLevelProgress, getXPForNextLevel } from '../lib/leveling';
-import { spacing, typography, colors, corner, shadow } from '../src/constants/theme';
+import { getLevelFromXP, getRankFromLevel } from '../lib/leveling';
+import { spacing, typography, colors, corner, shadow, navigationTokens } from '../src/constants/theme';
 import { Anchor, RootStackParamList } from '../src/navigation/types';
 import { getTodaySessions } from '../src/supabase/sessions';
 import { getStreak } from '../src/supabase/streaks';
 import { getProfile } from '../src/supabase/profiles';
 import { settleMomentum, getMomentumSnapshot } from '../lib/momentum';
 import { getWeeklySessionCounts } from '../src/supabase/sessions';
-import { getRecoveryScore } from '../src/supabase/analytics';
+import { useReducedMotion } from '../src/hooks/useReducedMotion';
 import {
   Surface,
   IconBadge,
@@ -31,7 +34,6 @@ import {
   SectionHeader,
   EmptyState,
   Reveal,
-  XPBar,
   AchievementGlyph,
   MomentumStatus,
 } from '../src/components/ui';
@@ -57,11 +59,11 @@ export default function HomeScreen() {
   const [xp, setXp] = useState(0);
   const [momentum, setMomentum] = useState(50);
   const [momentumDelta, setMomentumDelta] = useState(0);
-  const [recovery, setRecovery] = useState(0);
   const [streak, setStreak] = useState(0);
   const [trend, setTrend] = useState<number[]>([]);
   const [displayName, setDisplayName] = useState('there');
   const [isLoading, setIsLoading] = useState(true);
+  const hasLoaded = useRef(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -83,15 +85,6 @@ export default function HomeScreen() {
       if (settled != null) setMomentum(settled);
     } catch (e) {
       console.warn('Failed to load profile', e);
-    }
-  }, []);
-
-  const loadRecovery = useCallback(async () => {
-    try {
-      const r = await getRecoveryScore();
-      if (r) setRecovery(r.score || 0);
-    } catch (e) {
-      console.warn('Failed to load recovery', e);
     }
   }, []);
 
@@ -140,9 +133,13 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       const loadData = async () => {
-        setIsLoading(true);
-        await Promise.all([loadProfile(), loadRecovery(), loadHabits(), loadSessions(), loadStreak(), loadTrend()]);
-        setIsLoading(false);
+        // Only the very first load shows the skeleton — subsequent focus visits
+        // refresh silently so the user never sees a spinner flash on return.
+        const first = !hasLoaded.current;
+        if (first) setIsLoading(true);
+        await Promise.all([loadProfile(), loadHabits(), loadSessions(), loadStreak(), loadTrend()]);
+        hasLoaded.current = true;
+        if (first) setIsLoading(false);
       };
       loadData();
     }, [loadProfile, loadHabits, loadSessions, loadStreak, loadTrend])
@@ -161,6 +158,18 @@ export default function HomeScreen() {
 
   const missedYesterday = habits.length > 0 && anchorsDueToday.length > 0 && streak === 0;
 
+  // Press feedback for the primary check-in CTA — scale dip + soft haptic.
+  const quickScale = useRef(new Animated.Value(1)).current;
+  const handleQuickIn = () => {
+    Animated.spring(quickScale, { toValue: 0.97, tension: 200, friction: 18, useNativeDriver: true }).start();
+  };
+  const handleQuickOut = () => {
+    Animated.spring(quickScale, { toValue: 1, tension: 200, friction: 16, useNativeDriver: true }).start();
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <ScrollView
@@ -176,9 +185,9 @@ export default function HomeScreen() {
                 {displayName}
               </Text>
             </View>
-            <View style={[styles.rankChip, { backgroundColor: `${colors.primary}1F` }]}>
-              <AchievementGlyph name="anchor" size={12} color={colors.primary} />
-              <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700', marginLeft: spacing.sm }]}>
+            <View style={[styles.rankChip, { backgroundColor: `${colors.primary}1A`, borderColor: `${colors.primary}33` }]}>
+              <AchievementGlyph name="anchor" size={13} color={colors.primaryStrong} />
+              <Text style={[typography.caption, { color: colors.primaryStrong, fontWeight: '700', marginLeft: spacing.sm, letterSpacing: 0.3 }]}>
                 {rank}
               </Text>
             </View>
@@ -196,62 +205,30 @@ export default function HomeScreen() {
           />
         </Reveal>
 
-        {/* Hero stats: Level · Recovery · XP — one quiet strip */}
-        <Reveal delay={120}>
-          <View style={[styles.heroStats, { backgroundColor: c.surface, borderColor: c.hairline }]}>
-            <View style={[styles.heroStat, { borderRightWidth: 1, borderRightColor: c.hairline }]}>
-              <Text style={[typography.eyebrow, { color: c.textMuted }]}>LEVEL</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: spacing.xs }}>
-                <Text style={[typography.title, { color: c.text }]}>{level}</Text>
-                <Text style={[typography.small, { color: c.textMuted, marginLeft: spacing.xs }]}>· {rank}</Text>
-              </View>
-              <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
-                {getXPForNextLevel(xp) - xp} XP to go
-              </Text>
-            </View>
-            <View style={[styles.heroStat, { borderRightWidth: 1, borderRightColor: c.hairline }]}>
-              <Text style={[typography.eyebrow, { color: c.textMuted }]}>RECOVERY</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: spacing.xs }}>
-                <Text style={[typography.title, { color: c.text }]}>{recovery}</Text>
-                <Text style={[typography.small, { color: c.textMuted, marginLeft: spacing.xs }]}>/100</Text>
-              </View>
-              <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
-                {recovery >= 75 ? 'Bounces back fast' : recovery >= 50 ? 'Building resilience' : 'Show up today'}
-              </Text>
-            </View>
-            <View style={styles.heroStat}>
-              <Text style={[typography.eyebrow, { color: c.textMuted }]}>XP</Text>
-              <Text style={[typography.title, { color: c.text, marginTop: spacing.xs }]}>{xp}</Text>
-              <View style={{ marginTop: spacing.sm }}>
-                <XPBar progress={getLevelProgress(xp)} height={6} />
-              </View>
-            </View>
-          </View>
-        </Reveal>
-
-        {/* Daily insight */}
-        <Reveal delay={160}>
-          <QuoteCard />
-        </Reveal>
-
-        {/* Recovery nudge */}
-        {(missedYesterday || (anchorsDueToday.length > 0 && streak > 0)) && (
-          <Reveal delay={200}>
+        {/* Recovery nudge — sits right under the hero (its bottom padding
+            supplies the gap); the Daily insight below gets a matching gap. */}
+        {(missedYesterday || anchorsDueToday.length > 0) && (
+          <Reveal delay={160}>
             <Surface tint={missedYesterday ? `${colors.warning}12` : c.surfaceAlt} radius="lg" style={styles.recovery}>
-              <IconBadge name={missedYesterday ? 'seedling' : 'fire'} color={missedYesterday ? colors.warning : colors.primary} box={36} size={16} />
+              <IconBadge name={missedYesterday ? 'seedling' : 'anchor'} color={missedYesterday ? colors.warning : colors.primary} box={36} size={16} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={[typography.small, { color: c.text, fontWeight: '700' }]}>
-                  {missedYesterday ? 'Missed a day? That’s allowed.' : 'Keep your streak alive'}
+                  {missedYesterday ? 'Missed a day? That’s allowed.' : 'Keep your momentum moving'}
                 </Text>
                 <Text style={[typography.caption, { color: c.textMuted, marginTop: spacing.xs }]}>
                   {missedYesterday
                     ? 'No judgment. Today is a fresh anchor — just show up.'
-                    : `Day ${streak} and counting. One session protects it.`}
+                    : 'One session today is enough to keep moving forward.'}
                 </Text>
               </View>
             </Surface>
           </Reveal>
         )}
+
+        {/* Daily insight */}
+        <Reveal delay={200} style={{ marginTop: spacing.lg }}>
+          <QuoteCard />
+        </Reveal>
 
         {/* Anchors due */}
         <Reveal delay={240}>
@@ -263,9 +240,7 @@ export default function HomeScreen() {
         </Reveal>
 
         {isLoading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+          <HomeSkeleton />
         ) : habits.length === 0 ? (
           <EmptyState
             icon="anchor"
@@ -278,17 +253,23 @@ export default function HomeScreen() {
         ) : (
           <>
             <Reveal delay={260}>
-              <TouchableOpacity
+              <TouchableWithoutFeedback
                 onPress={startFirstDue}
-                activeOpacity={0.85}
-                style={[styles.quickStart, { backgroundColor: colors.primary }]}
+                onPressIn={handleQuickIn}
+                onPressOut={handleQuickOut}
               >
-                <FontAwesome5 name="play" size={16} color={colors.onAccent} />
-                <Text style={styles.quickStartText}>Start check-in</Text>
-                <View style={styles.quickStartChevron}>
-                  <FontAwesome5 name="chevron-right" size={14} color={colors.onAccent} />
-                </View>
-              </TouchableOpacity>
+                <Animated.View
+                  style={[styles.quickStart, { backgroundColor: colors.primary, transform: [{ scale: quickScale }] }]}
+                >
+                  <View style={styles.quickPlay}>
+                    <FontAwesome5 name="play" size={13} color={colors.onAccent} style={{ marginLeft: 1.5 }} />
+                  </View>
+                  <Text style={styles.quickStartText}>Start check-in</Text>
+                  <View style={styles.quickStartChevron}>
+                    <FontAwesome5 name="chevron-right" size={14} color={colors.onAccent} />
+                  </View>
+                </Animated.View>
+              </TouchableWithoutFeedback>
             </Reveal>
 
             {anchorsDueToday.map((anchor, i) => (
@@ -322,7 +303,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { padding: spacing.xl, paddingBottom: spacing.xxxxl },
+  scroll: { padding: spacing.xl, paddingBottom: navigationTokens.tabClearance },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -333,20 +314,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
     borderRadius: corner.pill,
-  },
-  heroStats: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    padding: spacing.xl,
-    borderRadius: corner.lg,
     borderWidth: 1,
-    ...shadow.soft,
   },
-  heroStat: { flex: 1, paddingHorizontal: spacing.md },
   recovery: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg, padding: spacing.lg },
-  anchorCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, marginTop: spacing.md },
+  anchorCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.lg, minHeight: 76, marginTop: spacing.md },
   anchorInfo: { flex: 1, marginLeft: spacing.lg },
   playBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   quickStart: {
@@ -356,9 +329,24 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderRadius: corner.pill,
     marginTop: spacing.md,
+    position: 'relative',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  quickStartText: { ...typography.body, color: colors.onAccent, fontWeight: '700', marginLeft: spacing.sm },
-  quickStartChevron: { marginLeft: spacing.sm, opacity: 0.8 },
+  quickPlay: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(6,32,29,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  quickStartText: { ...typography.body, color: colors.onAccent, fontWeight: '700', marginLeft: 0 },
+  quickStartChevron: { position: 'absolute', right: spacing.xl, opacity: 0.85 },
   loading: { paddingVertical: spacing.xxxxl },
   doneWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxxxl, position: 'relative' },
   doneHalo: {
@@ -408,6 +396,138 @@ function DoneState() {
       <Text style={[typography.body, { color: c.textMuted, textAlign: 'center', lineHeight: 22, marginTop: spacing.sm }]}>
         Every anchor is done for today. Show up again tomorrow and the streak keeps building.
       </Text>
+    </View>
+  );
+}
+
+/**
+ * Initial-load skeleton — calm shimmer placeholders that mirror the real
+ * layout 1:1, so the first paint reads as a structured screen instead of a
+ * bare spinner. Respects reduced-motion by holding a static mid-tone.
+ */
+function HomeSkeleton() {
+  const c = useThemeColors();
+  const reduced = useReducedMotion();
+  const shimmer = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      shimmer.setValue(0.5);
+      return;
+    }
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+        Animated.timing(shimmer, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+      ])
+    ).start();
+  }, [reduced, shimmer]);
+
+  const Block = ({ h, w, r = corner.sm, style }: { h: number; w?: number | `${number}%`; r?: number; style?: ViewStyle }) => (
+    <Animated.View
+      style={[
+        {
+          height: h,
+          width: w,
+          borderRadius: r,
+          opacity: shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] }),
+          backgroundColor: c.hairline,
+        },
+        style,
+      ]}
+    />
+  );
+
+  const card = (children: React.ReactNode, style?: ViewStyle, key?: string | number) => (
+    <View
+      key={key}
+      style={[
+        {
+          backgroundColor: c.surface,
+          borderWidth: 1,
+          borderColor: c.hairline,
+          borderRadius: corner.lg,
+          padding: spacing.xl,
+          ...shadow.soft,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+
+  return (
+    <View>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Block h={14} w={120} style={{ marginBottom: spacing.sm }} />
+          <Block h={32} w={160} />
+        </View>
+        <Block h={32} w={84} r={corner.pill} />
+      </View>
+
+      {/* Momentum hero */}
+      {card(
+        <View>
+          <Block h={12} w={90} style={{ marginBottom: spacing.md }} />
+          <Block h={52} w={150} style={{ marginBottom: spacing.lg }} />
+          <Block h={160} w="100%" r={corner.md} />
+        </View>,
+        undefined,
+        'momentum'
+      )}
+
+      {/* Stats strip */}
+      {card(
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1 }}>
+            <Block h={10} w={48} style={{ marginBottom: spacing.sm }} />
+            <Block h={22} w={40} />
+          </View>
+          <View style={{ flex: 1, borderLeftWidth: 1, borderLeftColor: c.hairline, paddingLeft: spacing.md }}>
+            <Block h={10} w={64} style={{ marginBottom: spacing.sm }} />
+            <Block h={22} w={48} />
+          </View>
+          <View style={{ flex: 1, borderLeftWidth: 1, borderLeftColor: c.hairline, paddingLeft: spacing.md }}>
+            <Block h={10} w={36} style={{ marginBottom: spacing.sm }} />
+            <Block h={22} w={44} style={{ marginBottom: spacing.md }} />
+            <Block h={6} w="100%" r={3} />
+          </View>
+        </View>,
+        { marginTop: spacing.lg },
+        'stats'
+      )}
+
+      {/* Daily insight */}
+      {card(
+        <View>
+          <Block h={18} w={20} r={6} style={{ marginBottom: spacing.sm }} />
+          <Block h={16} w="100%" style={{ marginBottom: spacing.xs }} />
+          <Block h={16} w="80%" style={{ marginBottom: spacing.sm }} />
+          <Block h={10} w={70} />
+        </View>,
+        { marginTop: spacing.lg, backgroundColor: c.surfaceAlt },
+        'quote'
+      )}
+
+      {/* Anchors due */}
+      <Block h={22} w={170} style={{ marginTop: spacing.lg, marginBottom: spacing.md }} />
+      {[0, 1, 2].map((i) =>
+        card(
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Block h={44} w={44} r={22} />
+            <View style={{ flex: 1, marginLeft: spacing.lg }}>
+              <Block h={16} w="60%" style={{ marginBottom: spacing.xs }} />
+              <Block h={12} w="40%" />
+            </View>
+            <Block h={40} w={40} r={20} />
+          </View>,
+          { marginTop: spacing.md },
+          i
+        )
+      )}
     </View>
   );
 }

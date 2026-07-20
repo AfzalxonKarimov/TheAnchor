@@ -10,15 +10,21 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
-import { useTheme } from '../src/theme/ThemeProvider';
 import { useThemeColors } from '../src/theme/useThemeColors';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { AchievementGlyph } from '../src/components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { createAnchor, updateAnchor, getAnchors } from '../src/supabase/anchors';
+import { createAnchor, getAnchors } from '../src/supabase/anchors';
 import { spacing, typography, colors, corner } from '../src/constants/theme';
-import { Anchor } from '../src/navigation/types';
+
+// "480 min" reads poorly — format durations as "8 hr" / "15 min" / "1 hr 30 min".
+const formatDuration = (mins: number): string => {
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h} hr ${m} min` : `${h} hr`;
+};
 
 // Predefined anchor templates for users to pick from
 const ANCHOR_TEMPLATES = [
@@ -41,45 +47,33 @@ const ANCHOR_TEMPLATES = [
 ];
 
 interface AddHabitScreenProps {
-  route: {
-    params?: {
-      anchor?: Anchor;
-    };
-  };
   navigation: any;
 }
 
 /**
- * Add/Edit Habit Screen - Create or edit anchors.
+ * Add Anchor Screen — create-only. Editing lives in EditAnchorScreen, so this
+ * screen never receives an anchor param (the old `isEditing` branch was dead).
  *
  * Design decisions:
  * - Template-based creation for quick setup
  * - Custom form for unique anchors
- * - Same screen handles both create and edit modes
+ * - All colors come from useThemeColors() so it follows the active theme.
  */
-export default function AddHabitScreen({ route, navigation }: AddHabitScreenProps) {
-  const editingAnchor = route.params?.anchor;
-  const isEditing = !!editingAnchor;
-
+export default function AddHabitScreen({ navigation }: AddHabitScreenProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
   // Lowercased titles the user already has — used to block adding a duplicate.
   const [existingTitles, setExistingTitles] = useState<Set<string>>(new Set());
-  const [customTitle, setCustomTitle] = useState(editingAnchor?.title || '');
-  const [customDuration, setCustomDuration] = useState(
-    String(editingAnchor?.minimumDuration || 15)
-  );
-  const [customDays, setCustomDays] = useState(
-    String(editingAnchor?.targetDays || 7)
-  );
-  const { isDark } = useTheme();
+  const [customTitle, setCustomTitle] = useState('');
+  const [customDuration, setCustomDuration] = useState('15');
+  const [customDays, setCustomDays] = useState('7');
   const c = useThemeColors();
 
   useEffect(() => {
     navigation.setOptions({
-      title: isEditing ? 'Edit Anchor' : 'Add Anchor',
+      title: 'Add Anchor',
     });
-  }, [isEditing, navigation]);
+  }, [navigation]);
 
   // Load the user's current anchors so we can prevent adding one twice.
   useEffect(() => {
@@ -105,48 +99,27 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
 
   const handleSelectTemplate = async (template: typeof ANCHOR_TEMPLATES[0]) => {
     const finalTitle = template.title;
-    console.log('handleSelectTemplate called:', finalTitle, 'isEditing:', isEditing);
 
-    // Block duplicates when creating (editing keeps its own title).
-    if (!isEditing && existingTitles.has(finalTitle.trim().toLowerCase())) {
+    // Block duplicates — the DB unique index is the final guard.
+    if (existingTitles.has(finalTitle.trim().toLowerCase())) {
       Alert.alert('Already added', `You already have an anchor called "${finalTitle}".`);
       return;
     }
 
     setIsSaving(true);
     try {
-      if (isEditing && editingAnchor) {
-        console.log('Updating anchor:', editingAnchor.id);
-        await updateAnchor(editingAnchor.id, {
+      try {
+        await createAnchor({
           title: finalTitle,
           targetDays: template.defaultDays,
           minimumDuration: template.defaultDuration,
           color: template.color,
           icon: template.icon,
         });
-      } else {
-        console.log('Creating anchor:', finalTitle);
-        // Try to save to Supabase, but handle dev mode gracefully
-        try {
-          await createAnchor({
-            title: finalTitle,
-            targetDays: template.defaultDays,
-            minimumDuration: template.defaultDuration,
-            color: template.color,
-            icon: template.icon,
-          });
-        } catch (supabaseError: any) {
-          // In dev mode without auth, Supabase will fail - that's expected
-          if (__DEV__) {
-            console.log('Dev mode: Supabase save failed (expected without auth):', supabaseError.message);
-            // Still show success in dev mode for testing UI flow
-          } else {
-            throw supabaseError; // Re-throw in production
-          }
-        }
+      } catch (supabaseError: any) {
+        // In dev mode without auth, Supabase will fail - that's expected.
+        if (!__DEV__) throw supabaseError;
       }
-
-      console.log('Anchor save flow complete');
 
       // Haptic feedback
       if (Platform.OS !== 'web' && Haptics) {
@@ -173,7 +146,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
     }
 
     // Block duplicates when creating a new custom anchor.
-    if (!isEditing && existingTitles.has(customTitle.trim().toLowerCase())) {
+    if (existingTitles.has(customTitle.trim().toLowerCase())) {
       Alert.alert('Already added', `You already have an anchor called "${customTitle.trim()}".`);
       return;
     }
@@ -192,12 +165,12 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
   };
 
   const renderTemplate = ({ item }: { item: typeof ANCHOR_TEMPLATES[0] }) => {
-    const alreadyAdded = !isEditing && existingTitles.has(item.title.trim().toLowerCase());
+    const alreadyAdded = existingTitles.has(item.title.trim().toLowerCase());
     return (
       <TouchableOpacity
         style={[
           styles.templateCard,
-          { borderColor: item.color, backgroundColor: isDark ? colors.dark.surface : colors.light.surface },
+          { borderColor: item.color, backgroundColor: c.surface },
           alreadyAdded && styles.templateCardDisabled,
         ]}
         onPress={() => handleSelectTemplate(item)}
@@ -208,9 +181,9 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
           <FontAwesome5 name={item.icon} size={24} color={item.color} />
         </View>
         <View style={styles.templateInfo}>
-          <Text style={[styles.templateTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>{item.title}</Text>
-          <Text style={styles.templateDetails}>
-            {item.defaultDays} days • {item.defaultDuration} min
+          <Text style={[styles.templateTitle, { color: c.text }]}>{item.title}</Text>
+          <Text style={[styles.templateDetails, { color: c.textMuted }]}>
+            {item.defaultDays} days • {formatDuration(item.defaultDuration)}
           </Text>
         </View>
         {alreadyAdded && (
@@ -224,7 +197,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? colors.dark.background : colors.light.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -235,11 +208,11 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
         </TouchableOpacity>
         <View style={styles.headerButton} />
       </View>
-      <Text style={[styles.title, { color: isDark ? colors.dark.text : colors.light.text }]}>
-        {isEditing ? 'Edit Your Anchor' : 'Choose Your Anchor'}
+      <Text style={[styles.title, { color: c.text }]}>
+        Choose Your Anchor
       </Text>
-      <Text style={styles.subtitle}>
-        {isEditing ? 'Update your anchor routine' : 'Pick a routine to build consistency'}
+      <Text style={[styles.subtitle, { color: c.textMuted }]}>
+        Pick a routine to build consistency
       </Text>
 
       <FlatList
@@ -252,7 +225,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
 
       {/* Custom Anchor Button */}
       <TouchableOpacity
-        style={[styles.customButton, { backgroundColor: isDark ? colors.dark.surface : colors.light.surface }]}
+        style={[styles.customButton, { backgroundColor: c.surface }]}
         onPress={() => setShowCustomForm(true)}
         activeOpacity={isSaving ? 1 : 0.7}
       >
@@ -262,46 +235,46 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
       {/* Custom Form Modal */}
       {showCustomForm && (
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDark ? colors.dark.surface : colors.light.background }]}>
-            <Text style={[styles.modalTitle, { color: isDark ? colors.dark.text : colors.light.text }]}>
+          <View style={[styles.modalContent, { backgroundColor: c.surface }]}>
+            <Text style={[styles.modalTitle, { color: c.text }]}>
               Custom Anchor
             </Text>
             <TextInput
               style={[styles.modalInput, {
-                backgroundColor: isDark ? colors.dark.background : colors.light.background,
-                color: isDark ? colors.dark.text : colors.light.text,
-                borderColor: colors.neutral[300],
+                backgroundColor: c.surfaceAlt,
+                color: c.text,
+                borderColor: c.hairline,
               }]}
               placeholder="Enter anchor name..."
               value={customTitle}
               onChangeText={setCustomTitle}
               autoFocus
-              placeholderTextColor={colors.neutral[500]}
+              placeholderTextColor={c.textMuted}
             />
             <View style={styles.customRow}>
               <TextInput
                 style={[styles.customInput, {
-                  backgroundColor: isDark ? colors.dark.background : colors.light.background,
-                  color: isDark ? colors.dark.text : colors.light.text,
-                  borderColor: colors.neutral[300],
+                  backgroundColor: c.surfaceAlt,
+                  color: c.text,
+                  borderColor: c.hairline,
                 }]}
                 placeholder="Duration (min)"
                 value={customDuration}
                 onChangeText={setCustomDuration}
                 keyboardType="numeric"
-                placeholderTextColor={colors.neutral[500]}
+                placeholderTextColor={c.textMuted}
               />
               <TextInput
                 style={[styles.customInput, {
-                  backgroundColor: isDark ? colors.dark.background : colors.light.background,
-                  color: isDark ? colors.dark.text : colors.light.text,
-                  borderColor: colors.neutral[300],
+                  backgroundColor: c.surfaceAlt,
+                  color: c.text,
+                  borderColor: c.hairline,
                 }]}
                 placeholder="Days/week"
                 value={customDays}
                 onChangeText={setCustomDays}
                 keyboardType="numeric"
-                placeholderTextColor={colors.neutral[500]}
+                placeholderTextColor={c.textMuted}
               />
             </View>
             <View style={styles.modalButtons}>
@@ -309,7 +282,7 @@ export default function AddHabitScreen({ route, navigation }: AddHabitScreenProp
                 style={styles.modalButton}
                 onPress={() => setShowCustomForm(false)}
               >
-                <Text style={[styles.modalButtonText, { color: isDark ? colors.dark.textMuted : colors.light.textMuted }]}>Cancel</Text>
+                <Text style={[styles.modalButtonText, { color: c.textMuted }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonPrimary]}
@@ -431,7 +404,7 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
   },
