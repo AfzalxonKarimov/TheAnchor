@@ -1,0 +1,77 @@
+name: Android AAB Build
+
+on:
+  push:
+    branches: [main, security-clean-initial]
+  workflow_dispatch:  # Manual trigger from Actions tab
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android App Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 35
+          ndk-version: r27c
+          cmdline-tools-version: latest
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./android/gradlew
+
+      - name: Build Android App Bundle (debug)
+        run: ./gradlew :app:bundleDebug
+        working-directory: ./android
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle-debug
+          path: android/app/build/outputs/bundle/debug/app-debug.aab
+          retention-days: 30
+
+      - name: Build Android App Bundle (release, unsigned)
+        run: ./gradlew :app:bundleRelease
+        working-directory: ./android
+
+      - name: Upload release AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle-release-unsigned
+          path: android/app/build/outputs/bundle/release/app-release-unsigned.aab
+          retention-days: 30
