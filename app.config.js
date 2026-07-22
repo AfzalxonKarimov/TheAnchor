@@ -16,6 +16,7 @@ module.exports = {
     scheme: 'theanchor',
     plugins: [
       'expo-font',
+      'expo-app-icon',
       // Google native sign-in. The plugin only registers the iOS URL scheme, so it
       // is only added when an iOS client ID is configured. Android needs nothing here.
       ...(GOOGLE_IOS_CLIENT_ID
