@@ -52,7 +52,8 @@ jobs:
             ${{ runner.os }}-gradle-
 
       - name: Make gradlew executable
-        run: chmod +x ./android/gradlew
+        run: chmod +x ./gradlew
+        working-directory: ./android
 
       - name: Build Android App Bundle (debug)
         run: ./gradlew :app:bundleDebug
