@@ -3,7 +3,16 @@ name: Android AAB Build
 on:
   push:
     branches: [main, security-clean-initial]
-  workflow_dispatch:  # Manual trigger from Actions tab
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Version code (integer)'
+        required: true
+        type: string
+      version_name:
+        description: 'Version name (e.g. 1.0.1)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -62,24 +71,33 @@ jobs:
         run: chmod +x ./gradlew
         working-directory: ./android
 
-      - name: Build Android App Bundle (debug)
-        run: ./gradlew :app:bundleDebug
+      - name: Set version from workflow_dispatch input
+        if: github.event.inputs.version_code != ''
+        run: |
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.event.inputs.version_code }}/" app/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"${{ github.event.inputs.version_name }}\"/" app/build.gradle
         working-directory: ./android
 
-      - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-bundle-debug
-          path: android/app/build/outputs/bundle/debug/app-debug.aab
-          retention-days: 30
+      - name: Decode Keystore
+        id: decode_keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > theanchor-release.keystore
+          echo "keystore_path=$(pwd)/theanchor-release.keystore" >> $GITHUB_OUTPUT
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      - name: Build Android App Bundle (release, unsigned)
+      - name: Build Android App Bundle (release, signed)
         run: ./gradlew :app:bundleRelease
         working-directory: ./android
+        env:
+          KEYSTORE_PATH: ${{ steps.decode_keystore.outputs.keystore_path }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload release AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-bundle-release-unsigned
-          path: android/app/build/outputs/bundle/release/app-release-unsigned.aab
+          name: app-bundle-release-signed
+          path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30

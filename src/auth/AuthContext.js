@@ -11,6 +11,7 @@ import { supabase } from '../supabase/client';
 import {
   GOOGLE_WEB_CLIENT_ID,
   GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_ANDROID_CLIENT_ID,
   isGoogleConfigured,
 } from './config';
 
@@ -20,6 +21,7 @@ import {
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
   iosClientId: GOOGLE_IOS_CLIENT_ID,
+  androidClientId: GOOGLE_ANDROID_CLIENT_ID,
   offlineAccess: false,
 });
 
